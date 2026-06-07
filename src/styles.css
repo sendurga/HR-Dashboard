@@ -1,0 +1,67 @@
+@import "tailwindcss" source("../");
+
+:root {
+  --amber-50: #FFF8EE;
+  --amber-100: #FDECD0;
+  --amber-200: #F9D5A0;
+  --amber-300: #F2B060;
+  --amber-400: #E8873A;
+  --amber-500: #C96528;
+  --amber-600: #A34A1A;
+  --amber-700: #7A3310;
+  --amber-800: #542208;
+  --warm-50: #FAF6F1;
+  --warm-100: #F0E8DA;
+  --warm-200: #E2D1B8;
+  --warm-300: #C8AD8A;
+  --warm-400: #A88055;
+  --warm-500: #8A5F35;
+  --warm-600: #6C4520;
+  --warm-700: #4F2E0F;
+  --teal-50: #EFF6F4;
+  --teal-100: #C8E8E2;
+  --teal-200: #99CFC5;
+  --teal-300: #5CA99B;
+  --teal-400: #2E8070;
+  --teal-500: #1A6158;
+  --teal-600: #0D4840;
+  --brick-50: #FBF0EE;
+  --brick-100: #F5D0CA;
+  --brick-200: #EBA99F;
+  --brick-300: #D97262;
+  --brick-400: #C04A38;
+  --brick-500: #9A3022;
+  --brick-600: #731B12;
+  --slate-50: #F4F2EF;
+  --slate-100: #E0DCD5;
+  --slate-200: #C4BDB3;
+  --slate-300: #998E80;
+  --slate-400: #7A6E60;
+  --slate-500: #5C5048;
+  --slate-600: #3D3530;
+  --slate-700: #26201C;
+  --slate-800: #181210;
+  --gold: #C9882A;
+  --gold-light: #F5E6CC;
+  --bg: #FAF7F3;
+  --surface: #FFFFFF;
+  --text-primary: #1E1812;
+  --text-secondary: #5C5048;
+  --text-muted: #998E80;
+  --border: #E8E0D5;
+  --border-strong: #C8BDB3;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

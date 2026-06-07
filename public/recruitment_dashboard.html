@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recruitment Strategic Dashboard — FY 2025-26</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --amber-50: #FFF8EE;
+    --amber-100: #FDECD0;
+    --amber-200: #F9D5A0;
+    --amber-300: #F2B060;
+    --amber-400: #E8873A;
+    --amber-500: #C96528;
+    --amber-600: #A34A1A;
+    --amber-700: #7A3310;
+    --amber-800: #542208;
+    --warm-50: #FAF6F1;
+    --warm-100: #F0E8DA;
+    --warm-200: #E2D1B8;
+    --warm-300: #C8AD8A;
+    --warm-400: #A88055;
+    --warm-500: #8A5F35;
+    --warm-600: #6C4520;
+    --warm-700: #4F2E0F;
+    --teal-50: #EFF6F4;
+    --teal-100: #C8E8E2;
+    --teal-200: #99CFC5;
+    --teal-300: #5CA99B;
+    --teal-400: #2E8070;
+    --teal-500: #1A6158;
+    --teal-600: #0D4840;
+    --brick-50: #FBF0EE;
+    --brick-100: #F5D0CA;
+    --brick-200: #EBA99F;
+    --brick-300: #D97262;
+    --brick-400: #C04A38;
+    --brick-500: #9A3022;
+    --brick-600: #731B12;
+    --slate-50: #F4F2EF;
+    --slate-100: #E0DCD5;
+    --slate-200: #C4BDB3;
+    --slate-300: #998E80;
+    --slate-400: #7A6E60;
+    --slate-500: #5C5048;
+    --slate-600: #3D3530;
+    --slate-700: #26201C;
+    --slate-800: #181210;
+    --gold: #C9882A;
+    --gold-light: #F5E6CC;
+    --bg: #FAF7F3;
+    --surface: #FFFFFF;
+    --text-primary: #1E1812;
+    --text-secondary: #5C5048;
+    --text-muted: #998E80;
+    --border: #E8E0D5;
+    --border-strong: #C8BDB3;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 0;
+  }
+  .header {
+    background: var(--slate-800);
+    padding: 2.5rem 3rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--gold);
+  }
+  .header-left h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.1rem;
+    font-weight: 600;
+    color: #FFFFFF;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+  .header-left p {
+    font-size: 0.85rem;
+    color: var(--slate-300);
+    margin-top: 0.35rem;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .header-badge {
+    background: var(--gold);
+    color: var(--slate-800);
+    padding: 0.5rem 1.25rem;
+    border-radius: 2px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .main { padding: 2.5rem 3rem; max-width: 1600px; }
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 2.5rem;
+  }
+  .kpi-card {
+    background: var(--surface);
+    padding: 1.4rem 1.25rem;
+    position: relative;
+  }
+  .kpi-card.accent { background: var(--slate-800); }
+  .kpi-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+  }
+  .kpi-card.accent .kpi-label { color: var(--slate-300); }
+  .kpi-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+  .kpi-card.accent .kpi-value { color: var(--gold); }
+  .kpi-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .kpi-card.accent .kpi-sub { color: var(--slate-300); }
+  .kpi-indicator {
+    position: absolute;
+    top: 1.4rem;
+    right: 1.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .kpi-indicator.warn { background: #FEF3DC; color: #9A5D0A; }
+  .kpi-indicator.bad { background: #FDEAE8; color: #9A2A1E; }
+  .kpi-indicator.good { background: #EDFBF5; color: #1A6845; }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .content-grid-3 {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    overflow: hidden;
+  }
+  .panel-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    background: var(--warm-50);
+    padding: 2px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* Funnel */
+  .funnel-wrap { display: flex; flex-direction: column; gap: 0.4rem; }
+  .funnel-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .funnel-label {
+    width: 130px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .funnel-bar-wrap {
+    flex: 1;
+    height: 30px;
+    background: var(--warm-50);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .funnel-bar {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 0.5rem;
+    transition: width 0.8s ease;
+  }
+  .funnel-bar span {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+  }
+  .funnel-pct {
+    width: 48px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .funnel-count {
+    width: 36px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .drop-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.1rem 0 0.1rem 130px;
+    font-size: 0.68rem;
+    color: var(--brick-400);
+    font-weight: 500;
+  }
+
+  /* Source table */
+  .src-table { width: 100%; border-collapse: collapse; }
+  .src-table tr { border-bottom: 1px solid var(--border); }
+  .src-table tr:last-child { border-bottom: none; }
+  .src-table td { padding: 0.55rem 0; font-size: 0.8rem; }
+  .src-table .src-name { color: var(--text-primary); font-weight: 500; }
+  .src-table .src-num { color: var(--text-secondary); text-align: center; }
+  .src-table .src-rate {
+    text-align: right;
+    font-weight: 600;
+    font-size: 0.78rem;
+  }
+  .src-bar-cell { width: 80px; }
+  .src-mini-bar {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--amber-200);
+    margin: 4px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .src-mini-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--amber-400);
+  }
+
+  /* Vacancy breakdown */
+  .vac-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .vac-stat {
+    background: var(--warm-50);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    text-align: center;
+  }
+  .vac-stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+  .vac-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+
+  /* BU performance table */
+  .bu-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .bu-row:last-child { border-bottom: none; }
+  .bu-name {
+    width: 160px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    flex-shrink: 0;
+  }
+  .bu-bar-wrap {
+    flex: 1;
+    height: 22px;
+    background: var(--warm-50);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bu-bar {
+    height: 100%;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    padding-left: 0.4rem;
+  }
+  .bu-bar span { font-size: 0.7rem; color: white; font-weight: 600; }
+  .bu-stats {
+    display: flex;
+    gap: 1rem;
+    flex-shrink: 0;
+    width: 120px;
+    justify-content: flex-end;
+  }
+  .bu-stat { text-align: center; }
+  .bu-stat-n { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); }
+  .bu-stat-l { font-size: 0.65rem; color: var(--text-muted); }
+
+  .leakage-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .leak-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .leak-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+  }
+  .leak-card.type-drop::before { background: var(--amber-400); }
+  .leak-card.type-reject::before { background: var(--brick-400); }
+  .leak-card.type-noshow::before { background: var(--slate-400); }
+  .leak-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.7rem;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 0.2rem;
+  }
+  .leak-card.type-drop .leak-num { color: var(--amber-600); }
+  .leak-card.type-reject .leak-num { color: var(--brick-500); }
+  .leak-card.type-noshow .leak-num { color: var(--slate-500); }
+  .leak-label { font-size: 0.73rem; color: var(--text-muted); font-weight: 500; }
+  .leak-pct { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+  /* Recruiter perf */
+  .rec-row {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .rec-row:last-child { border-bottom: none; }
+  .rec-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .rec-metrics {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .rec-m { font-size: 0.72rem; color: var(--text-muted); }
+  .rec-m strong { color: var(--text-secondary); font-weight: 600; }
+
+  /* Quarter chart */
+  .q-chart-wrap {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-end;
+    height: 120px;
+    padding: 0 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .q-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+  .q-bar-wrap { width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+  .q-bar {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    min-height: 4px;
+  }
+  .q-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; }
+  .q-leg {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    justify-content: center;
+  }
+  .q-leg-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
+  .q-leg-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+  }
+
+  /* Position heatmap / top positions */
+  .pos-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .pos-row:last-child { border-bottom: none; }
+  .pos-name { flex: 1; font-size: 0.78rem; color: var(--text-primary); }
+  .pos-apps { width: 32px; text-align: right; font-size: 0.75rem; color: var(--text-muted); }
+  .pos-mini { width: 60px; height: 5px; border-radius: 3px; background: var(--warm-50); overflow: hidden; }
+  .pos-mini-fill { height: 100%; border-radius: 3px; }
+  .pos-joined { width: 32px; text-align: center; font-size: 0.75rem; font-weight: 600; color: var(--teal-500); }
+
+  .footer {
+    background: var(--slate-800);
+    padding: 1.25rem 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+  }
+  .footer p { font-size: 0.72rem; color: var(--slate-400); letter-spacing: 0.05em; }
+  .footer-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.9rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+
+  @media print {
+    body { background: white; }
+    .header, .footer { background: #1E2030; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <p>FY 2025 — 2026 · Talent Acquisition Intelligence</p>
+    <h1>Recruitment Strategic Dashboard</h1>
+  </div>
+  <div class="header-badge">Boardroom Ready · Q1–Q4</div>
+</div>
+
+<div class="main">
+
+  <!-- KPI Strip -->
+  <div class="section-label">Executive KPIs</div>
+  <div class="kpi-grid">
+    <div class="kpi-card accent">
+      <div class="kpi-label">Total Applicants</div>
+      <div class="kpi-value">651</div>
+      <div class="kpi-sub">Across all business units</div>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-indicator warn">6.3%</span>
+      <div class="kpi-label">Hiring Rate</div>
+      <div class="kpi-value">41</div>
+      <div class="kpi-sub">Candidates joined</div>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-indicator warn">25.5%</span>
+      <div class="kpi-label">Offer Drop Rate</div>
+      <div class="kpi-value">14</div>
+      <div class="kpi-sub">Of 55 offers extended</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Time to Fill</div>
+      <div class="kpi-value">85</div>
+      <div class="kpi-sub">Days · Median 65</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Vacancies</div>
+      <div class="kpi-value">57</div>
+      <div class="kpi-sub">42 closed · 7 on hold</div>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-indicator bad">18.7%</span>
+      <div class="kpi-label">Candidate Drops</div>
+      <div class="kpi-value">122</div>
+      <div class="kpi-sub">Mid-pipeline attrition</div>
+    </div>
+  </div>
+
+  <!-- Recruitment Funnel + Source Efficiency -->
+  <div class="content-grid">
+    <div class="panel">
+      <div class="panel-title">
+        Recruitment Funnel — Pipeline Conversion
+        <span class="panel-badge">651 total applicants</span>
+      </div>
+      <div class="funnel-wrap">
+        <div class="funnel-row">
+          <div class="funnel-label">Applied</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar" style="width:100%; background:var(--slate-400);">
+              <span>651</span>
+            </div>
+          </div>
+          <div class="funnel-count">651</div>
+          <div class="funnel-pct">100%</div>
+        </div>
+        <div class="drop-arrow">▼ Screen Shortlist Rate: 58.2%</div>
+        <div class="funnel-row">
+          <div class="funnel-label">Screen Shortlisted</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar" style="width:58.2%; background:var(--amber-400);">
+              <span>379</span>
+            </div>
+          </div>
+          <div class="funnel-count">379</div>
+          <div class="funnel-pct">58.2%</div>
+        </div>
+        <div class="drop-arrow">▼ Interview Reach Rate: 60.2%</div>
+        <div class="funnel-row">
+          <div class="funnel-label">Reached Interview</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar" style="width:35%; background:var(--amber-500);">
+              <span>228</span>
+            </div>
+          </div>
+          <div class="funnel-count">228</div>
+          <div class="funnel-pct">35.0%</div>
+        </div>
+        <div class="drop-arrow">▼ Offer Conversion: 24.1% ⚠ Critical bottleneck</div>
+        <div class="funnel-row">
+          <div class="funnel-label">Extended Offers</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar" style="width:8.5%; background:var(--brick-400);">
+              <span>55</span>
+            </div>
+          </div>
+          <div class="funnel-count">55</div>
+          <div class="funnel-pct">8.5%</div>
+        </div>
+        <div class="drop-arrow">▼ Offer Acceptance: 74.5%</div>
+        <div class="funnel-row">
+          <div class="funnel-label">Joined</div>
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar" style="width:6.3%; background:var(--teal-400);">
+              <span>41</span>
+            </div>
+          </div>
+          <div class="funnel-count">41</div>
+          <div class="funnel-pct">6.3%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        Source Channel Efficiency
+        <span class="panel-badge">by joining rate</span>
+      </div>
+      <table class="src-table">
+        <tr>
+          <td class="src-name">Employee Referral</td>
+          <td class="src-num">18</td>
+          <td class="src-bar-cell">
+            <div class="src-mini-bar"><div class="src-mini-fill" style="width:100%; background:var(--teal-400);"></div></div>
+          </td>
+          <td class="src-rate" style="color:var(--teal-500);">38.9%</td>
+        </tr>
+        <tr>
+          <td class="src-name">PPO</td>
+          <td class="src-num">3</td>
+          <td class="src-bar-cell">
+            <div class="src-mini-bar"><div class="src-mini-fill" style="width:100%; background:var(--teal-300);"></div></div>
+          </td>
+          <td class="src-rate" style="color:var(--teal-500);">100%</td>
+        </tr>
+        <tr>
+          <td class="src-name">Campus Hiring</td>
+          <td class="src-num">21</td>
+          <td class="src-bar-cell">
+            <div class="src-mini-bar"><div class="src-mini-fill" style="width:37%; background:var(--amber-400);"></div></div>
+          </td>
+          <td class="src-rate" style="color:var(--amber-600);">14.3%</td>
+        </tr>
+        <tr>
+          <td class="src-name">LinkedIn</td>
+          <td class="src-num">13</td>
+          <td class="src-bar-cell">
+            <div class="src-mini-bar"><div class="src-mini-fill" style="width:40%; background:var(--amber-400);"></div></div>
+          </td>
+          <td class="src-rate" style="color:var(--amber-600);">15.4%</td>
+        </tr>
+        <tr>
+          <td class="src-name">Recex</td>
+          <td class="src-num">12</td>
+          <td class="src-bar-cell">
+            <div class="src-mini-bar"><div class="src-mini-fill" style="width:22%; background:var(--warm-300);"></div></div>
+          </td>
+          <td class="src-rate" style="color:var(--warm-600);">8.3%</td>
+        </tr>
+        <tr>
+          <td class="src-name">Naukri</td>
+          <td class="src-num">573</td>
+          <td class="src-bar-cell">
+            <div class="src-mini-bar"><div class="src-mini-fill" style="width:10%; background:var(--brick-300);"></div></div>
+          </td>
+          <td class="src-rate" style="color:var(--brick-500);">3.8%</td>
+        </tr>
+        <tr>
+          <td class="src-name">C3 Management</td>
+          <td class="src-num">8</td>
+          <td class="src-bar-cell">
+            <div class="src-mini-bar"><div class="src-mini-fill" style="width:2%; background:var(--brick-400);"></div></div>
+          </td>
+          <td class="src-rate" style="color:var(--brick-600);">0.0%</td>
+        </tr>
+      </table>
+      <div style="margin-top:1rem; padding:0.85rem 1rem; background:var(--gold-light); border-radius:6px; border-left:3px solid var(--gold);">
+        <div style="font-size:0.75rem; font-weight:600; color:var(--amber-700); margin-bottom:0.25rem;">⚡ Key Insight</div>
+        <div style="font-size:0.73rem; color:var(--amber-800); line-height:1.5;">Naukri drives 88% of applicants but only 53% of joins. Employee referrals yield 10× better conversion at minimal cost.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BU Performance + Leakage + Vacancy -->
+  <div class="content-grid-3">
+    <div class="panel">
+      <div class="panel-title">
+        Business Unit Performance
+        <span class="panel-badge">applicants → joined</span>
+      </div>
+      <div class="bu-row">
+        <div class="bu-name">AL Circle</div>
+        <div class="bu-bar-wrap">
+          <div class="bu-bar" style="width:100%; background:var(--amber-400);">
+            <span>414 apps</span>
+          </div>
+        </div>
+        <div class="bu-stats">
+          <div class="bu-stat"><div class="bu-stat-n">16</div><div class="bu-stat-l">Joined</div></div>
+          <div class="bu-stat"><div class="bu-stat-n" style="color:var(--brick-400)">3.9%</div><div class="bu-stat-l">Rate</div></div>
+        </div>
+      </div>
+      <div class="bu-row">
+        <div class="bu-name">Uniseven</div>
+        <div class="bu-bar-wrap">
+          <div class="bu-bar" style="width:27.5%; background:var(--warm-400);">
+            <span>114</span>
+          </div>
+        </div>
+        <div class="bu-stats">
+          <div class="bu-stat"><div class="bu-stat-n">10</div><div class="bu-stat-l">Joined</div></div>
+          <div class="bu-stat"><div class="bu-stat-n" style="color:var(--amber-600)">8.8%</div><div class="bu-stat-l">Rate</div></div>
+        </div>
+      </div>
+      <div class="bu-row">
+        <div class="bu-name">Static Hydraulic</div>
+        <div class="bu-bar-wrap">
+          <div class="bu-bar" style="width:11.8%; background:var(--teal-400);">
+            <span>49</span>
+          </div>
+        </div>
+        <div class="bu-stats">
+          <div class="bu-stat"><div class="bu-stat-n">8</div><div class="bu-stat-l">Joined</div></div>
+          <div class="bu-stat"><div class="bu-stat-n" style="color:var(--teal-500)">16.3%</div><div class="bu-stat-l">Rate</div></div>
+        </div>
+      </div>
+      <div class="bu-row">
+        <div class="bu-name">Jiwan</div>
+        <div class="bu-bar-wrap">
+          <div class="bu-bar" style="width:7.7%; background:var(--warm-400);">
+            <span>32</span>
+          </div>
+        </div>
+        <div class="bu-stats">
+          <div class="bu-stat"><div class="bu-stat-n">1</div><div class="bu-stat-l">Joined</div></div>
+          <div class="bu-stat"><div class="bu-stat-n" style="color:var(--brick-400)">3.1%</div><div class="bu-stat-l">Rate</div></div>
+        </div>
+      </div>
+      <div class="bu-row">
+        <div class="bu-name">EPC</div>
+        <div class="bu-bar-wrap">
+          <div class="bu-bar" style="width:7.5%; background:var(--teal-400);">
+            <span>31</span>
+          </div>
+        </div>
+        <div class="bu-stats">
+          <div class="bu-stat"><div class="bu-stat-n">5</div><div class="bu-stat-l">Joined</div></div>
+          <div class="bu-stat"><div class="bu-stat-n" style="color:var(--teal-500)">16.1%</div><div class="bu-stat-l">Rate</div></div>
+        </div>
+      </div>
+      <div class="bu-row">
+        <div class="bu-name">Dakshini Prayash</div>
+        <div class="bu-bar-wrap">
+          <div class="bu-bar" style="width:2.5%; background:var(--brick-300);">
+          </div>
+        </div>
+        <div class="bu-stats">
+          <div class="bu-stat"><div class="bu-stat-n">0</div><div class="bu-stat-l">Joined</div></div>
+          <div class="bu-stat"><div class="bu-stat-n" style="color:var(--brick-500)">0%</div><div class="bu-stat-l">Rate</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Pipeline Leakage Points</div>
+      <div class="leakage-grid">
+        <div class="leak-card type-drop">
+          <div class="leak-num">122</div>
+          <div class="leak-label">Candidate Drops</div>
+          <div class="leak-pct">18.7% of pipeline</div>
+        </div>
+        <div class="leak-card type-reject">
+          <div class="leak-num">118</div>
+          <div class="leak-label">R1 Rejects</div>
+          <div class="leak-pct">Post-interview rejection</div>
+        </div>
+        <div class="leak-card type-noshow">
+          <div class="leak-num">29</div>
+          <div class="leak-label">No-Shows</div>
+          <div class="leak-pct">4.5% attrition</div>
+        </div>
+        <div class="leak-card type-reject">
+          <div class="leak-num">29</div>
+          <div class="leak-label">R2 Rejects</div>
+          <div class="leak-pct">Second-stage drop</div>
+        </div>
+        <div class="leak-card type-drop" style="border-left-color:var(--brick-400);">
+          <div class="leak-num" style="color:var(--brick-500);">14</div>
+          <div class="leak-label">Offer Drops</div>
+          <div class="leak-pct">25.5% of all offers</div>
+        </div>
+        <div class="leak-card type-noshow" style="border-left-color:var(--teal-400);">
+          <div class="leak-num" style="color:var(--teal-500);">41</div>
+          <div class="leak-label">Successful Joins</div>
+          <div class="leak-pct">6.3% overall rate</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem; padding:0.75rem; background:var(--brick-50); border-radius:6px; border-left:3px solid var(--brick-400);">
+        <div style="font-size:0.72rem; color:var(--brick-600); line-height:1.5; font-weight:500;">⚠ 271 screen rejects + 122 candidate drops = 393 lost candidates before first interview round</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Vacancy Tracker</div>
+      <div class="vac-grid">
+        <div class="vac-stat">
+          <div class="vac-stat-num" style="color:var(--amber-600);">57</div>
+          <div class="vac-stat-label">Total Open</div>
+        </div>
+        <div class="vac-stat">
+          <div class="vac-stat-num" style="color:var(--teal-500);">42</div>
+          <div class="vac-stat-label">Filled</div>
+        </div>
+        <div class="vac-stat">
+          <div class="vac-stat-num" style="color:var(--brick-400);">7</div>
+          <div class="vac-stat-label">On Hold</div>
+        </div>
+        <div class="vac-stat">
+          <div class="vac-stat-num" style="color:var(--warm-500);">7</div>
+          <div class="vac-stat-label">In Process</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem; position:relative;">
+        <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:500; letter-spacing:0.05em;">FILL RATE</div>
+        <div style="height:10px; background:var(--warm-50); border-radius:5px; overflow:hidden; border:1px solid var(--border);">
+          <div style="height:100%; width:73.7%; background:linear-gradient(90deg, var(--teal-400), var(--amber-400)); border-radius:5px;"></div>
+        </div>
+        <div style="font-size:0.75rem; color:var(--teal-500); font-weight:600; margin-top:0.3rem;">73.7% overall closure rate</div>
+      </div>
+      <div style="margin-top:1rem;">
+        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:500; letter-spacing:0.05em; margin-bottom:0.5rem;">TOP BU FILL</div>
+        <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.8;">
+          <div style="display:flex; justify-content:space-between;"><span>Static Hydraulic</span><span style="font-weight:600; color:var(--teal-500);">High fill</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Uni7</span><span style="font-weight:600; color:var(--teal-500);">High fill</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>EPC</span><span style="font-weight:600; color:var(--amber-600);">Partial (Hold)</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>AL Circle</span><span style="font-weight:600; color:var(--amber-600);">Many on hold</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quarterly Trend + Recruiter + Top Positions -->
+  <div class="section-label">Quarterly Performance &amp; Recruiter Analytics</div>
+  <div class="content-grid">
+    <div class="panel">
+      <div class="panel-title">Quarterly Applicant vs. Joining Trend</div>
+      <div style="position:relative; height:240px;">
+        <canvas id="qChart" role="img" aria-label="Quarterly recruitment trend bar chart showing applicants and joiners per quarter"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Recruiter Performance Matrix</div>
+      <div class="rec-row">
+        <div class="rec-name">
+          <span>Sindhur</span>
+          <span style="font-size:0.72rem; padding:2px 10px; background:var(--teal-50,#EFF6F4); color:var(--teal-500); border-radius:20px; border:1px solid var(--teal-200);">Lead Performer</span>
+        </div>
+        <div class="rec-metrics">
+          <div class="rec-m">Applications <strong>286</strong></div>
+          <div class="rec-m">Offers <strong>32</strong></div>
+          <div class="rec-m">Joined <strong>23</strong></div>
+          <div class="rec-m">Conv. <strong style="color:var(--teal-500)">8.0%</strong></div>
+        </div>
+      </div>
+      <div class="rec-row">
+        <div class="rec-name">
+          <span>Durga</span>
+          <span style="font-size:0.72rem; padding:2px 10px; background:var(--amber-50,#FFF8EE); color:var(--amber-600); border-radius:20px; border:1px solid var(--amber-200);">Needs Support</span>
+        </div>
+        <div class="rec-metrics">
+          <div class="rec-m">Applications <strong>363</strong></div>
+          <div class="rec-m">Offers <strong>21</strong></div>
+          <div class="rec-m">Joined <strong>16</strong></div>
+          <div class="rec-m">Conv. <strong style="color:var(--amber-600)">4.4%</strong></div>
+        </div>
+      </div>
+      <div style="margin-top:1rem; display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+        <div style="background:var(--warm-50); border-radius:8px; padding:0.85rem; border:1px solid var(--border); text-align:center;">
+          <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:0.2rem; text-transform:uppercase; letter-spacing:0.06em;">Offer Drop (Sindhur)</div>
+          <div style="font-family:'Playfair Display',serif; font-size:1.5rem; color:var(--teal-500); font-weight:600;">21.9%</div>
+        </div>
+        <div style="background:var(--warm-50); border-radius:8px; padding:0.85rem; border:1px solid var(--border); text-align:center;">
+          <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:0.2rem; text-transform:uppercase; letter-spacing:0.06em;">Offer Drop (Durga)</div>
+          <div style="font-family:'Playfair Display',serif; font-size:1.5rem; color:var(--brick-400); font-weight:600;">23.8%</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem; padding:0.75rem; background:var(--gold-light); border-radius:6px; border-left:3px solid var(--gold);">
+        <div style="font-size:0.72rem; color:var(--amber-800); line-height:1.5;">Durga handles 55.8% of pipeline volume but achieves lower conversion — workload redistribution or capability investment recommended.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Positions -->
+  <div class="section-label">Top Positions by Pipeline Volume</div>
+  <div class="panel">
+    <div class="panel-title">Position-wise Applicant Flow &amp; Success Rate</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+      <div>
+        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:500; letter-spacing:0.06em; margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+          <span style="flex:1;">POSITION</span>
+          <span style="width:60px; text-align:right;">APPS</span>
+          <span style="width:60px;"></span>
+          <span style="width:40px; text-align:center;">JOINED</span>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Business Dev. Executive</div>
+          <div class="pos-apps">42</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:100%; background:var(--amber-400);"></div></div>
+          <div class="pos-joined">0</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Sr Backend Developer</div>
+          <div class="pos-apps">41</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:98%; background:var(--amber-400);"></div></div>
+          <div class="pos-joined">1</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Assistant News Editor</div>
+          <div class="pos-apps">39</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:93%; background:var(--warm-400);"></div></div>
+          <div class="pos-joined">2</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Full Stack Developer</div>
+          <div class="pos-apps">37</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:88%; background:var(--warm-400);"></div></div>
+          <div class="pos-joined">1</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">KAM-Media Sales Jr</div>
+          <div class="pos-apps">33</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:79%; background:var(--warm-300);"></div></div>
+          <div class="pos-joined">0</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">New Client Acq (Sales)</div>
+          <div class="pos-apps">32</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:76%; background:var(--teal-400);"></div></div>
+          <div class="pos-joined">3</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Purchase Manager</div>
+          <div class="pos-apps">32</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:76%; background:var(--teal-400);"></div></div>
+          <div class="pos-joined">4</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:500; letter-spacing:0.06em; margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+          <span style="flex:1;">POSITION</span>
+          <span style="width:60px; text-align:right;">APPS</span>
+          <span style="width:60px;"></span>
+          <span style="width:40px; text-align:center;">JOINED</span>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Client Acq. Executive</div>
+          <div class="pos-apps">28</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:67%; background:var(--teal-400);"></div></div>
+          <div class="pos-joined">2</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">New Client Acq (Sales)</div>
+          <div class="pos-apps">27</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:64%; background:var(--warm-300);"></div></div>
+          <div class="pos-joined">1</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">UI/UX Developer</div>
+          <div class="pos-apps">21</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:50%; background:var(--amber-400);"></div></div>
+          <div class="pos-joined">1</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Planning Engineer</div>
+          <div class="pos-apps">21</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:50%; background:var(--teal-400);"></div></div>
+          <div class="pos-joined">3</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Technology Lead</div>
+          <div class="pos-apps">20</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:48%; background:var(--brick-300);"></div></div>
+          <div class="pos-joined">0</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">BD-Metal</div>
+          <div class="pos-apps">20</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:48%; background:var(--teal-400);"></div></div>
+          <div class="pos-joined">3</div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-name">Marketing Manager</div>
+          <div class="pos-apps">20</div>
+          <div class="pos-mini"><div class="pos-mini-fill" style="width:48%; background:var(--brick-300);"></div></div>
+          <div class="pos-joined">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>Confidential · FY 2025–2026 Talent Acquisition Intelligence · Internal Distribution Only</p>
+  <div class="footer-logo">TA Analytics</div>
+</div>
+
+<script>
+const qCtx = document.getElementById('qChart');
+new Chart(qCtx, {
+  type: 'bar',
+  data: {
+    labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+    datasets: [
+      {
+        label: 'Applicants',
+        data: [199, 239, 183, 22],
+        backgroundColor: 'rgba(168, 128, 85, 0.75)',
+        borderRadius: 4,
+        borderSkipped: false,
+      },
+      {
+        label: 'Joined',
+        data: [13, 12, 6, 3],
+        backgroundColor: 'rgba(46, 128, 112, 0.85)',
+        borderRadius: 4,
+        borderSkipped: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: '#998E80', font: { size: 12, family: 'DM Sans' }, autoSkip: false }
+      },
+      y: {
+        grid: { color: 'rgba(200,189,179,0.3)', lineWidth: 0.5 },
+        ticks: { color: '#998E80', font: { size: 11, family: 'DM Sans' } },
+        border: { display: false }
+      }
+    }
+  }
+});
+</script>
+
+<div style="padding:0 3rem 1.5rem; display:flex; gap:1rem; justify-content:center;">
+  <div style="display:flex; align-items:center; gap:5px; font-size:0.72rem; color:#998E80;">
+    <span style="width:10px;height:10px;border-radius:2px;background:rgba(168,128,85,0.75);display:inline-block;"></span> Applicants
+  </div>
+  <div style="display:flex; align-items:center; gap:5px; font-size:0.72rem; color:#998E80;">
+    <span style="width:10px;height:10px;border-radius:2px;background:rgba(46,128,112,0.85);display:inline-block;"></span> Joined
+  </div>
+</div>
+
+</body>
+</html>
