@@ -42,8 +42,8 @@ interface DashboardData {
   lastUpdated: string
 }
 
-const DEFAULT_APPLICANTS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjDWZWvkAm7MVC5aA0vAjS3QMzbgc9CC8ZFJ8v5mHqXKLUBEO5N0xPWKl7MHUMEQ5yZ2_Omv0j42F/pub?gid=2138370345&single=true&output=csv'
-const DEFAULT_VACANCIES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjDWZWvkAm7MVC5aA0vAjS3QMzbgc9CC8ZFJ8v5mHqXKLUBEO5N0xPWKl7MHUMEQ5yZ2_Omv0j42F/pub?gid=608034954&single=true&output=csv'
+const DEFAULT_APPLICANTS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQmkmd4cXXE7zilER5GpMueAAShfY_30lyvoHmUhUDwMFARktZeZt_B6BBqQZG6PNSab4nlhqn1uQO3/pub?gid=392485170&single=true&output=csv'
+const DEFAULT_VACANCIES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQmkmd4cXXE7zilER5GpMueAAShfY_30lyvoHmUhUDwMFARktZeZt_B6BBqQZG6PNSab4nlhqn1uQO3/pub?gid=1840790630&single=true&output=csv'
 
 function pct(n: number) {
   return n.toFixed(1) + '%'
