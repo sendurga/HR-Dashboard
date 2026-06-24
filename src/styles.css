@@ -1,6 +1,17 @@
 @import "tailwindcss" source("../");
 
 :root {
+  /* ─── Primary: Deep Navy (industrial-corporate) ─── */
+  --navy-900: #070E1A;
+  --navy-800: #0F1B2D;
+  --navy-700: #162640;
+  --navy-600: #1E3354;
+  --navy-500: #2A4570;
+
+  /* ─── Accent: Industrial Gold / Amber ─── */
+  --gold: #D4A843;
+  --gold-light: #F5E6CC;
+  --gold-dark: #B8922E;
   --amber-50: #FFF8EE;
   --amber-100: #FDECD0;
   --amber-200: #F9D5A0;
@@ -10,6 +21,8 @@
   --amber-600: #A34A1A;
   --amber-700: #7A3310;
   --amber-800: #542208;
+
+  /* ─── Warm neutrals ─── */
   --warm-50: #FAF6F1;
   --warm-100: #F0E8DA;
   --warm-200: #E2D1B8;
@@ -18,6 +31,8 @@
   --warm-500: #8A5F35;
   --warm-600: #6C4520;
   --warm-700: #4F2E0F;
+
+  /* ─── Teal: positive / success ─── */
   --teal-50: #EFF6F4;
   --teal-100: #C8E8E2;
   --teal-200: #99CFC5;
@@ -25,6 +40,8 @@
   --teal-400: #2E8070;
   --teal-500: #1A6158;
   --teal-600: #0D4840;
+
+  /* ─── Brick: negative / alerts ─── */
   --brick-50: #FBF0EE;
   --brick-100: #F5D0CA;
   --brick-200: #EBA99F;
@@ -32,6 +49,8 @@
   --brick-400: #C04A38;
   --brick-500: #9A3022;
   --brick-600: #731B12;
+
+  /* ─── Slate (legacy compat) ─── */
   --slate-50: #F4F2EF;
   --slate-100: #E0DCD5;
   --slate-200: #C4BDB3;
@@ -41,15 +60,21 @@
   --slate-600: #3D3530;
   --slate-700: #26201C;
   --slate-800: #181210;
-  --gold: #C9882A;
-  --gold-light: #F5E6CC;
-  --bg: #FAF7F3;
+
+  /* ─── Semantic tokens ─── */
+  --bg: #F7F5F2;
   --surface: #FFFFFF;
-  --text-primary: #1E1812;
-  --text-secondary: #5C5048;
-  --text-muted: #998E80;
-  --border: #E8E0D5;
+  --surface-elevated: rgba(255, 255, 255, 0.85);
+  --text-primary: #1A1A2E;
+  --text-secondary: #4A4A5E;
+  --text-muted: #8E8E9E;
+  --border: #E4E0DC;
   --border-strong: #C8BDB3;
+
+  /* ─── Glass effect ─── */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-shadow: 0 8px 32px rgba(15, 27, 45, 0.08);
 }
 
 * {
@@ -59,9 +84,144 @@
 }
 
 body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar styling ─── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 3px;
+}
+
+/* ─── Glassmorphic panel ─── */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.glass-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(15, 27, 45, 0.12);
+}
+
+/* ─── Tab navigation ─── */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  background: rgba(15, 27, 45, 0.06);
+  border-radius: 12px;
+  padding: 4px;
+}
+.tab-item {
+  flex: 1;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  letter-spacing: 0.01em;
+}
+.tab-item:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.5);
+}
+.tab-item.active {
+  color: var(--navy-800);
+  background: white;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(15, 27, 45, 0.1);
+}
+
+/* ─── KPI card hover ─── */
+.kpi-card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi-card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(15, 27, 45, 0.08);
+}
+
+/* ─── Tab content transition ─── */
+.tab-content {
+  animation: tabFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Spinner ─── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Login shake ─── */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  15% { transform: translateX(-10px); }
+  30% { transform: translateX(10px); }
+  45% { transform: translateX(-8px); }
+  60% { transform: translateX(8px); }
+  75% { transform: translateX(-4px); }
+  90% { transform: translateX(4px); }
+}
+
+/* ─── Login fade ─── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Subtle pulse for live indicator ─── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ─── Data row hover ─── */
+.data-row {
+  transition: background 0.15s ease;
+}
+.data-row:hover {
+  background: rgba(212, 168, 67, 0.04) !important;
+}
+
+/* ─── Login input focus ─── */
+.login-input:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(212, 168, 67, 0.15) !important;
+  outline: none;
+}
+
+/* ─── Header pattern overlay ─── */
+.header-pattern {
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 35px,
+      rgba(212, 168, 67, 0.03) 35px,
+      rgba(212, 168, 67, 0.03) 36px
+    );
 }
