@@ -6,7 +6,8 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Recruitment Strategic Dashboard — FY 2025-26' },
+      { title: 'Talent Acquisition Intelligence — FY 2025-26' },
+      { name: 'description', content: 'Recruitment Strategic Dashboard for FY 2025-26 Talent Acquisition Intelligence' },
     ],
     links: [
       {
@@ -20,7 +21,7 @@ export const Route = createRootRoute({
       },
       {
         rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap',
+        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap',
       },
     ],
   }),
