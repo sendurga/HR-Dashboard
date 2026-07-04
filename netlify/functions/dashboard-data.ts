@@ -15,6 +15,7 @@ const DEFAULT_APPLICANTS_URL =
 const DEFAULT_VACANCIES_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQmkmd4cXXE7zilER5GpMueAAShfY_30lyvoHmUhUDwMFARktZeZt_B6BBqQZG6PNSab4nlhqn1uQO3/pub?gid=1840790630&single=true&output=csv'
 
+
 // ─── CSV Parsing ─────────────────────────────────────────────
 
 function parseCSVLine(line: string): string[] {
