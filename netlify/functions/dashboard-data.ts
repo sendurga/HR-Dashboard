@@ -185,6 +185,19 @@ interface DashboardData {
       offerToHire: number
     }
   }[]
+  hiringTimelineByBU: {
+    bu: string
+    totalApplicants: number
+    totalJoined: number
+    positions: {
+      position: string
+      total: number
+      joined: number
+      offered: number
+      dropped: number
+      avgDays: number | null
+    }[]
+  }[]
   lastUpdated: string
 }
 
@@ -199,20 +212,20 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   const allKeys = Object.keys(sample)
 
   // Resolve column names using config candidates
-  const statusKey    = findCol(allKeys, COLUMN_CANDIDATES.status)
-  const sourceKey    = findCol(allKeys, COLUMN_CANDIDATES.source)
-  const buKey        = findCol(allKeys, COLUMN_CANDIDATES.businessUnit)
-  const posKey       = findCol(allKeys, COLUMN_CANDIDATES.position)
+  const statusKey = findCol(allKeys, COLUMN_CANDIDATES.status)
+  const sourceKey = findCol(allKeys, COLUMN_CANDIDATES.source)
+  const buKey = findCol(allKeys, COLUMN_CANDIDATES.businessUnit)
+  const posKey = findCol(allKeys, COLUMN_CANDIDATES.position)
   const recruiterKey = findCol(allKeys, COLUMN_CANDIDATES.recruiter)
-  const dateKey      = findCol(allKeys, COLUMN_CANDIDATES.applicationDate)
-  const quarterKey   = findCol(allKeys, COLUMN_CANDIDATES.quarter)
-  const joinDateKey  = findCol(allKeys, COLUMN_CANDIDATES.joiningDate)
-  const reasonKey    = findCol(allKeys, ['reason for rejection', 'rejection reason', 'reason'])
-  const reqDateKey   = findCol(allKeys, COLUMN_CANDIDATES.requisitionDate)
+  const dateKey = findCol(allKeys, COLUMN_CANDIDATES.applicationDate)
+  const quarterKey = findCol(allKeys, COLUMN_CANDIDATES.quarter)
+  const joinDateKey = findCol(allKeys, COLUMN_CANDIDATES.joiningDate)
+  const reasonKey = findCol(allKeys, ['reason for rejection', 'rejection reason', 'reason'])
+  const reqDateKey = findCol(allKeys, COLUMN_CANDIDATES.requisitionDate)
   const screenDateKey = findCol(allKeys, COLUMN_CANDIDATES.screeningDate)
-  const r1DateKey    = findCol(allKeys, COLUMN_CANDIDATES.r1Date)
-  const r2DateKey    = findCol(allKeys, COLUMN_CANDIDATES.r2Date)
-  const r3DateKey    = findCol(allKeys, COLUMN_CANDIDATES.r3Date)
+  const r1DateKey = findCol(allKeys, COLUMN_CANDIDATES.r1Date)
+  const r2DateKey = findCol(allKeys, COLUMN_CANDIDATES.r2Date)
+  const r3DateKey = findCol(allKeys, COLUMN_CANDIDATES.r3Date)
   const offerDateKey = findCol(allKeys, COLUMN_CANDIDATES.offerDate)
 
   // Compute pipeline stages
@@ -221,27 +234,15 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   let candidateDrops = 0, r1Rejects = 0, r2Rejects = 0, noShows = 0, offerDrops = 0, screenRejects = 0
   const timeToFillDays: number[] = [] // collect days-to-fill for joined candidates
 
-  interface TimelineItem {
-    reqToApp: number
-    appToScreen: number
-    screenToR1: number
-    r1ToR2: number
-    r2ToR3: number
-    r3ToOffer: number
-    offerToHire: number
-    totalDays: number
-  }
-
   const sourceMap: Record<string, { total: number; joined: number }> = {}
   const buMap: Record<string, { total: number; joined: number }> = {}
+  const buPositionMap: Record<string, Record<string, { total: number; joined: number; offered: number; dropped: number; days: number[] }>> = {}
   const recruiterMap: Record<string, { apps: number; offers: number; joined: number; offerDrops: number }> = {}
   const posMap: Record<string, { apps: number; joined: number }> = {}
   const quarterMap: Record<string, { applicants: number; joined: number }> = {}
   const rejectReasonMap: Record<string, number> = {}
   const offerDropReasonMap: Record<string, number> = {}
   const timeToFillByBUMap: Record<string, number[]> = {}
-  const timelineMap: Record<string, TimelineItem[]> = {}
-  const buPosCandidateCountMap: Record<string, number> = {}
 
   for (const row of apps) {
     const status = (row[statusKey] || '').trim()
@@ -264,36 +265,13 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     // BU tracking
     if (!buMap[bu]) buMap[bu] = { total: 0, joined: 0 }
     buMap[bu].total++
+    if (!buPositionMap[bu]) buPositionMap[bu] = {}
+    if (!buPositionMap[bu][position]) buPositionMap[bu][position] = { total: 0, joined: 0, offered: 0, dropped: 0, days: [] }
+    buPositionMap[bu][position].total++
 
     // Position tracking
     if (!posMap[position]) posMap[position] = { apps: 0, joined: 0 }
     posMap[position].apps++
-
-    // Timeline tracking
-    const buPosKey = `${bu}|${position}`
-    buPosCandidateCountMap[buPosKey] = (buPosCandidateCountMap[buPosKey] || 0) + 1
-    if (!timelineMap[buPosKey]) timelineMap[buPosKey] = []
-    const reqDate = parseDate(row[reqDateKey] || '')
-    const appDate = parseDate(row[dateKey] || '')
-    const screenDate = parseDate(row[screenDateKey] || '')
-    const r1Date = parseDate(row[r1DateKey] || '')
-    const r2Date = parseDate(row[r2DateKey] || '')
-    const r3Date = parseDate(row[r3DateKey] || '')
-    const offerDate = parseDate(row[offerDateKey] || '')
-    const joinDate = parseDate(row[joinDateKey] || '')
-
-    if (appDate && joinDate && joinDate > appDate) {
-      const actualAppToJoin = Math.round((joinDate.getTime() - appDate.getTime()) / (1000 * 60 * 60 * 24))
-      const reqToApp = reqDate && appDate > reqDate ? Math.round((appDate.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24)) : Math.round(actualAppToJoin * 0.15)
-      const appToScreen = screenDate && screenDate > appDate ? Math.round((screenDate.getTime() - appDate.getTime()) / (1000 * 60 * 60 * 24)) : Math.round(actualAppToJoin * 0.15)
-      const screenToR1 = r1Date && screenDate && r1Date > screenDate ? Math.round((r1Date.getTime() - screenDate.getTime()) / (1000 * 60 * 60 * 24)) : Math.round(actualAppToJoin * 0.20)
-      const r1ToR2 = r2Date && r1Date && r2Date > r1Date ? Math.round((r2Date.getTime() - r1Date.getTime()) / (1000 * 60 * 60 * 24)) : Math.round(actualAppToJoin * 0.15)
-      const r2ToR3 = r3Date && r2Date && r3Date > r2Date ? Math.round((r3Date.getTime() - r2Date.getTime()) / (1000 * 60 * 60 * 24)) : Math.round(actualAppToJoin * 0.15)
-      const r3ToOffer = offerDate && r3Date && offerDate > r3Date ? Math.round((offerDate.getTime() - r3Date.getTime()) / (1000 * 60 * 60 * 24)) : Math.round(actualAppToJoin * 0.15)
-      const offerToHire = joinDate && offerDate && joinDate > offerDate ? Math.round((joinDate.getTime() - offerDate.getTime()) / (1000 * 60 * 60 * 24)) : Math.round(actualAppToJoin * 0.20)
-      const totalDays = reqToApp + appToScreen + screenToR1 + r1ToR2 + r2ToR3 + r3ToOffer + offerToHire
-      timelineMap[buPosKey].push({ reqToApp, appToScreen, screenToR1, r1ToR2, r2ToR3, r3ToOffer, offerToHire, totalDays })
-    }
 
     // Recruiter tracking
     if (!recruiterMap[recruiter]) recruiterMap[recruiter] = { apps: 0, offers: 0, joined: 0, offerDrops: 0 }
@@ -303,17 +281,17 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     //  Status classification (priority order — first match wins)
     //  See kpi-config.ts STATUS_PATTERNS for keyword definitions
     // ──────────────────────────────────────────────────────────
-    const isJoin      = matchStatus(status, STATUS_PATTERNS.joined)
+    const isJoin = matchStatus(status, STATUS_PATTERNS.joined)
     const isOfferDrop = matchStatus(status, STATUS_PATTERNS.offerDrop)
-    const isOffer     = !isJoin && !isOfferDrop && matchStatus(status, STATUS_PATTERNS.offer)
-    const isDrop      = !isJoin && !isOffer && !isOfferDrop && matchStatus(status, STATUS_PATTERNS.dropped)
-    const isR1        = matchStatus(status, STATUS_PATTERNS.r1Reject)
-    const isR2        = matchStatus(status, STATUS_PATTERNS.r2Reject)
-    const isNoShow    = matchStatus(status, STATUS_PATTERNS.noShow)
+    const isOffer = !isJoin && !isOfferDrop && matchStatus(status, STATUS_PATTERNS.offer)
+    const isDrop = !isJoin && !isOffer && !isOfferDrop && matchStatus(status, STATUS_PATTERNS.dropped)
+    const isR1 = matchStatus(status, STATUS_PATTERNS.r1Reject)
+    const isR2 = matchStatus(status, STATUS_PATTERNS.r2Reject)
+    const isNoShow = matchStatus(status, STATUS_PATTERNS.noShow)
     const isScreenReject = !isR1 && !isR2 && matchStatus(status, STATUS_PATTERNS.screenReject)
 
     // Shortlisted = passed initial screen (does NOT include screen rejects)
-    const isShort     = matchStatus(status, STATUS_PATTERNS.shortlisted) || isOffer || isJoin || isOfferDrop || isR1 || isR2 || isNoShow
+    const isShort = matchStatus(status, STATUS_PATTERNS.shortlisted) || isOffer || isJoin || isOfferDrop || isR1 || isR2 || isNoShow
     // Interviewed = reached interview stage
     const isInterview = matchStatus(status, STATUS_PATTERNS.interview) || isOffer || isJoin || isOfferDrop || isR1 || isR2
 
@@ -336,6 +314,8 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
       recruiterMap[recruiter].joined++
       recruiterMap[recruiter].offers++  // FIX: joined candidates passed offer stage
       quarterMap[quarter].joined++
+      buPositionMap[bu][position].joined++
+      buPositionMap[bu][position].offered++
 
       // Compute time-to-fill for this joined candidate
       const appDate = parseDate(dateStr)
@@ -347,17 +327,22 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
           timeToFillDays.push(diffDays)
           if (!timeToFillByBUMap[bu]) timeToFillByBUMap[bu] = []
           timeToFillByBUMap[bu].push(diffDays)
+          buPositionMap[bu][position].days.push(diffDays)
         }
       }
     } else if (isOfferDrop) {
       offerDrops++; offered++; shortlisted++; interviewed++
       recruiterMap[recruiter].offers++
       recruiterMap[recruiter].offerDrops++
+      buPositionMap[bu][position].offered++
+      buPositionMap[bu][position].dropped++
     } else if (isOffer) {
       offered++; shortlisted++; interviewed++
       recruiterMap[recruiter].offers++
+      buPositionMap[bu][position].offered++
     } else if (isDrop) {
       candidateDrops++
+      buPositionMap[bu][position].dropped++
       if (isShort) shortlisted++
       if (isInterview) interviewed++
     } else if (isR1) {
@@ -384,7 +369,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   const vacSample = vacs[0] || {}
   const vacKeys = Object.keys(vacSample)
   const vacStatusKey = findCol(vacKeys, VACANCY_COLUMN_CANDIDATES.status)
-  const vacBUKey     = findCol(vacKeys, VACANCY_COLUMN_CANDIDATES.businessUnit)
+  const vacBUKey = findCol(vacKeys, VACANCY_COLUMN_CANDIDATES.businessUnit)
 
   const totalVacancies = vacs.length
   let filledVacancies = 0, onHoldVacancies = 0, inProcessVacancies = 0
@@ -407,6 +392,30 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     }
   }
 
+  // Hiring timeline grouped by BU
+  const hiringTimelineByBU = Object.entries(buPositionMap)
+    .filter(([bu]) => bu !== 'Unknown')
+    .map(([bu, positions]) => {
+      const posArr = Object.entries(positions)
+        .filter(([pos]) => pos !== 'Unknown')
+        .map(([position, d]) => ({
+          position,
+          total: d.total,
+          joined: d.joined,
+          offered: d.offered,
+          dropped: d.dropped,
+          avgDays: d.days.length > 0 ? Math.round(d.days.reduce((a, b) => a + b, 0) / d.days.length) : null,
+        }))
+        .sort((a, b) => b.total - a.total)
+      return {
+        bu,
+        totalApplicants: posArr.reduce((s, p) => s + p.total, 0),
+        totalJoined: posArr.reduce((s, p) => s + p.joined, 0),
+        positions: posArr,
+      }
+    })
+    .sort((a, b) => b.totalApplicants - a.totalApplicants)
+
   // Build KPI counts object for formula computation
   const kpiCounts: KPICounts = {
     totalApplicants,
@@ -420,10 +429,10 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   }
 
   const offersExtended = KPI_FORMULAS.offersExtended.compute(kpiCounts)
-  const hiringRate     = KPI_FORMULAS.hiringRate.compute(kpiCounts)
-  const offerDropRate  = KPI_FORMULAS.offerDropRate.compute(kpiCounts)
+  const hiringRate = KPI_FORMULAS.hiringRate.compute(kpiCounts)
+  const offerDropRate = KPI_FORMULAS.offerDropRate.compute(kpiCounts)
   const offerAcceptanceRate = KPI_FORMULAS.offerAcceptanceRate ? KPI_FORMULAS.offerAcceptanceRate.compute(kpiCounts) : 0
-  const fillRate       = KPI_FORMULAS.fillRate.compute(kpiCounts)
+  const fillRate = KPI_FORMULAS.fillRate.compute(kpiCounts)
 
   // Avg Time to Fill (days) — only if we have date data for joined candidates
   const avgTimeToFill = timeToFillDays.length > 0
@@ -487,62 +496,6 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     .map(([bu, days]) => ({ bu, avgDays: Math.round(days.reduce((a, b) => a + b, 0) / days.length) }))
     .sort((a, b) => b.avgDays - a.avgDays)
 
-  // Build hiring timeline — include any position with known BU or known position name
-  // Falls back to synthetic data derived from overall avg time-to-fill when no date columns exist
-  const avgFillFallback = timeToFillDays.length > 0
-    ? Math.round(timeToFillDays.reduce((a, b) => a + b, 0) / timeToFillDays.length)
-    : 45 // industry-average fallback
-
-  const hiringTimeline = Object.entries(timelineMap)
-    .filter(([key]) => {
-      const [bu, position] = key.split('|')
-      // Only exclude rows where BOTH bu AND position are unknown
-      return !(bu === 'Unknown' && position === 'Unknown')
-    })
-    .map(([key, items]) => {
-      const [bu, position] = key.split('|')
-      if (items.length > 0) {
-        const n = items.length
-        const reqToApp = Math.round(items.reduce((acc, item) => acc + item.reqToApp, 0) / n)
-        const appToScreen = Math.round(items.reduce((acc, item) => acc + item.appToScreen, 0) / n)
-        const screenToR1 = Math.round(items.reduce((acc, item) => acc + item.screenToR1, 0) / n)
-        const r1ToR2 = Math.round(items.reduce((acc, item) => acc + item.r1ToR2, 0) / n)
-        const r2ToR3 = Math.round(items.reduce((acc, item) => acc + item.r2ToR3, 0) / n)
-        const r3ToOffer = Math.round(items.reduce((acc, item) => acc + item.r3ToOffer, 0) / n)
-        const offerToHire = Math.round(items.reduce((acc, item) => acc + item.offerToHire, 0) / n)
-        const totalDays = reqToApp + appToScreen + screenToR1 + r1ToR2 + r2ToR3 + r3ToOffer + offerToHire
-        return {
-          bu,
-          position,
-          candidateCount: buPosCandidateCountMap[key] || 0,
-          totalDays,
-          stages: { reqToApp, appToScreen, screenToR1, r1ToR2, r2ToR3, r3ToOffer, offerToHire },
-        }
-      } else {
-        // No date data — derive proportional estimates from the overall avg fill time
-        let hash = 0
-        for (let i = 0; i < key.length; i++) hash = (hash << 5) - hash + key.charCodeAt(i)
-        hash = Math.abs(hash)
-        const variation = 0.8 + ((hash % 40) / 100)
-        return {
-          bu,
-          position,
-          candidateCount: buPosCandidateCountMap[key] || 0,
-          totalDays: avgFillFallback,
-          stages: {
-            reqToApp: Math.round(avgFillFallback * 0.15 * variation),
-            appToScreen: Math.round(avgFillFallback * 0.15 * variation),
-            screenToR1: Math.round(avgFillFallback * 0.20 * variation),
-            r1ToR2: Math.round(avgFillFallback * 0.15 * variation),
-            r2ToR3: Math.round(avgFillFallback * 0.15 * variation),
-            r3ToOffer: Math.round(avgFillFallback * 0.15 * variation),
-            offerToHire: Math.round(avgFillFallback * 0.20 * variation),
-          },
-        }
-      }
-    })
-    .sort((a, b) => b.totalDays - a.totalDays)
-
   return {
     kpis: {
       totalApplicants,
@@ -571,7 +524,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     vacancyByBU,
     topOfferDropReasons,
     timeToFillByBU,
-    hiringTimeline,
+    hiringTimelineByBU,
     lastUpdated: new Date().toISOString(),
   }
 }

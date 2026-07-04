@@ -45,6 +45,19 @@ interface DashboardData {
   recruiterPerformance: { recruiter: string; applications: number; offers: number; joined: number; convRate: number; offerDropRate: number }[]
   topPositions: { position: string; apps: number; joined: number }[]
   vacancyByBU: { bu: string; total: number; filled: number; onHold: number; inProcess: number }[]
+  hiringTimelineByBU: {
+    bu: string
+    totalApplicants: number
+    totalJoined: number
+    positions: {
+      position: string
+      total: number
+      joined: number
+      offered: number
+      dropped: number
+      avgDays: number | null
+    }[]
+  }[]
   topOfferDropReasons: { reason: string; count: number }[]
   timeToFillByBU: { bu: string; avgDays: number }[]
   hiringTimeline: {
@@ -64,8 +77,8 @@ interface DashboardData {
   lastUpdated: string
 }
 
-const DEFAULT_APPLICANTS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQmkmd4cXXE7zilER5GpMueAAShfY_30lyvoHmUhUDwMFARktZeZt_B6BBqQZG6PNSab4nlhqn1uQO3/pub?gid=392485170&single=true&output=csv'
-const DEFAULT_VACANCIES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQmkmd4cXXE7zilER5GpMueAAShfY_30lyvoHmUhUDwMFARktZeZt_B6BBqQZG6PNSab4nlhqn1uQO3/pub?gid=1840790630&single=true&output=csv'
+const DEFAULT_APPLICANTS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjDWZWvkAm7MVC5aA0vAjS3QMzbgc9CC8ZFJ8v5mHqXKLUBEO5N0xPWKl7MHUMEQ5yZ2_Omv0j42F/pub?gid=2138370345&single=true&output=csv'
+const DEFAULT_VACANCIES = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjDWZWvkAm7MVC5aA0vAjS3QMzbgc9CC8ZFJ8v5mHqXKLUBEO5N0xPWKl7MHUMEQ5yZ2_Omv0j42F/pub?gid=608034954&single=true&output=csv'
 
 // ─── Credential verification (obscured) ─────────────────────
 // Credentials are stored as SHA-256 hex digests, never in plain text
@@ -278,7 +291,7 @@ function LoginScreen({ onAuth }: { onAuth: () => void }) {
                 boxShadow: '0 4px 14px rgba(212,168,67,0.25)',
                 opacity: checking ? 0.7 : 1,
               }}
-              onMouseEnter={e => { if (!checking) { const b = e.target as HTMLButtonElement; b.style.background = '#E0B854'; b.style.transform = 'translateY(-1px)'; b.style.boxShadow = '0 6px 20px rgba(212,168,67,0.35)' }}}
+              onMouseEnter={e => { if (!checking) { const b = e.target as HTMLButtonElement; b.style.background = '#E0B854'; b.style.transform = 'translateY(-1px)'; b.style.boxShadow = '0 6px 20px rgba(212,168,67,0.35)' } }}
               onMouseLeave={e => { const b = e.target as HTMLButtonElement; b.style.background = 'var(--gold)'; b.style.transform = 'translateY(0)'; b.style.boxShadow = '0 4px 14px rgba(212,168,67,0.25)' }}
             >{checking ? 'Verifying…' : 'Sign In →'}</button>
           </form>
@@ -621,11 +634,13 @@ function PerformanceTab({ data }: { data: DashboardData }) {
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Rate</div>
                 </div>
                 <div style={{ textAlign: 'center', width: 40 }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: (() => {
-                    const ttf = data.timeToFillByBU?.find(t => t.bu === bu.bu)?.avgDays;
-                    if (!ttf) return 'var(--text-muted)';
-                    return ttf <= 30 ? 'var(--teal-500)' : ttf <= 60 ? 'var(--amber-600)' : 'var(--brick-500)';
-                  })() }}>
+                  <div style={{
+                    fontSize: '0.78rem', fontWeight: 600, color: (() => {
+                      const ttf = data.timeToFillByBU?.find(t => t.bu === bu.bu)?.avgDays;
+                      if (!ttf) return 'var(--text-muted)';
+                      return ttf <= 30 ? 'var(--teal-500)' : ttf <= 60 ? 'var(--amber-600)' : 'var(--brick-500)';
+                    })()
+                  }}>
                     {(() => {
                       const ttf = data.timeToFillByBU?.find(t => t.bu === bu.bu)?.avgDays;
                       return ttf ? `${ttf}d` : '-';
@@ -700,8 +715,6 @@ function PerformanceTab({ data }: { data: DashboardData }) {
 
 function AnalyticsTab({ data }: { data: DashboardData }) {
   const { kpis, quarterlyTrend, recruiterPerformance } = data
-  const [selectedBU, setSelectedBU] = useState<string>('All')
-  const [searchPos, setSearchPos] = useState<string>('')
 
   const chartData = {
     labels: quarterlyTrend.map(q => q.quarter),
@@ -736,92 +749,9 @@ function AnalyticsTab({ data }: { data: DashboardData }) {
     },
   }
 
-  // Compute analytics metrics
-  const timeline = data.hiringTimeline || []
-  const avgTotalDays = timeline.length > 0
-    ? Math.round(timeline.reduce((a, b) => a + b.totalDays, 0) / timeline.length)
-    : null
-  const fastestBU = timeline.length > 0
-    ? [...timeline].sort((a, b) => a.totalDays - b.totalDays)[0]
-    : null
-  const slowestBU = timeline.length > 0
-    ? timeline[0]
-    : null
-
-  const STAGE_COLORS = [
-    { label: 'Req→App', color: '#3B5ED6' },
-    { label: 'App→Screen', color: '#64748B' },
-    { label: 'Screen→R1', color: '#D97706' },
-    { label: 'R1→R2', color: '#B45309' },
-    { label: 'R2→R3', color: '#D4A843' },
-    { label: 'R3→Offer', color: '#2E8070' },
-    { label: 'Offer→Hire', color: '#C0392B' },
-  ]
-
   return (
     <div className="tab-content">
       <SectionLabel>Quarterly Performance &amp; Recruiter Analytics</SectionLabel>
-
-      {/* ── Analytics Metric Tiles ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-        {/* Avg Pipeline Speed */}
-        <div className="kpi-card-hover" style={{
-          background: 'linear-gradient(135deg, var(--navy-800), var(--navy-700))',
-          borderRadius: 14, padding: '1.25rem', position: 'relative', overflow: 'hidden',
-          border: '1px solid rgba(212,168,67,0.15)',
-        }}>
-          <div className="header-pattern" style={{ position: 'absolute', inset: 0, opacity: 0.2, pointerEvents: 'none' }} />
-          <div style={{ position: 'relative' }}>
-            <div style={{ fontSize: '0.68rem', color: 'rgba(180,190,210,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Avg Pipeline Speed</div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', lineHeight: 1 }}>
-              {avgTotalDays !== null ? `${avgTotalDays}d` : kpis.avgTimeToFill !== null ? `${kpis.avgTimeToFill}d` : '—'}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(180,190,210,0.5)', marginTop: '0.3rem' }}>Req to hire (avg)</div>
-          </div>
-        </div>
-
-        {/* Fastest Hire */}
-        <div className="kpi-card-hover" style={{
-          background: 'white', borderRadius: 14, padding: '1.25rem',
-          border: '1px solid var(--border)', borderLeft: '4px solid var(--teal-400)',
-        }}>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Fastest Hire</div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.9rem', fontWeight: 700, color: 'var(--teal-500)', lineHeight: 1 }}>
-            {fastestBU ? `${fastestBU.totalDays}d` : '—'}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {fastestBU ? `${fastestBU.bu} · ${fastestBU.position}` : 'No date data'}
-          </div>
-        </div>
-
-        {/* Slowest Hire */}
-        <div className="kpi-card-hover" style={{
-          background: 'white', borderRadius: 14, padding: '1.25rem',
-          border: '1px solid var(--border)', borderLeft: '4px solid var(--brick-400)',
-        }}>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Longest Pipeline</div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.9rem', fontWeight: 700, color: 'var(--brick-500)', lineHeight: 1 }}>
-            {slowestBU ? `${slowestBU.totalDays}d` : '—'}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {slowestBU ? `${slowestBU.bu} · ${slowestBU.position}` : 'No date data'}
-          </div>
-        </div>
-
-        {/* Positions Tracked */}
-        <div className="kpi-card-hover" style={{
-          background: 'white', borderRadius: 14, padding: '1.25rem',
-          border: '1px solid var(--border)', borderLeft: '4px solid var(--amber-400)',
-        }}>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Positions Tracked</div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.9rem', fontWeight: 700, color: 'var(--amber-600)', lineHeight: 1 }}>
-            {timeline.length}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-            Across {new Set(timeline.map(t => t.bu)).size} business units
-          </div>
-        </div>
-      </div>
 
       {/* ── Quarterly Chart + Recruiter Matrix ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -864,8 +794,8 @@ function AnalyticsTab({ data }: { data: DashboardData }) {
                   ...(i === 0
                     ? { background: '#EFF6F4', color: 'var(--teal-500)', borderColor: '#C8E8E2' }
                     : r.convRate >= 5
-                    ? { background: '#FFF8EE', color: 'var(--amber-600)', borderColor: '#F9D5A0' }
-                    : { background: '#FBF0EE', color: 'var(--brick-400)', borderColor: '#EBA99F' })
+                      ? { background: '#FFF8EE', color: 'var(--amber-600)', borderColor: '#F9D5A0' }
+                      : { background: '#FBF0EE', color: 'var(--brick-400)', borderColor: '#EBA99F' })
                 }}>
                   {i === 0 ? 'Lead Performer' : r.convRate >= 5 ? 'Mid Performer' : 'Needs Support'}
                 </span>
@@ -900,163 +830,7 @@ function AnalyticsTab({ data }: { data: DashboardData }) {
         </Panel>
       </div>
 
-      {/* ── Hiring Timeline Table ── */}
-      <Panel>
-        <PanelTitle title="Hiring Timeline per Position per Business Unit" badge="Job Req → Hire (Average Days)" />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-          {/* Stage legend */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {STAGE_COLORS.map(s => (
-              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.65rem', color: 'var(--text-muted)', background: 'var(--warm-50)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 9px' }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, display: 'inline-block', flexShrink: 0 }} />
-                {s.label}
-              </div>
-            ))}
-          </div>
-
-          {/* Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--navy-800)' }}>Filter by BU:</label>
-              <select
-                value={selectedBU}
-                onChange={e => setSelectedBU(e.target.value)}
-                style={{
-                  fontSize: '0.75rem',
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)',
-                  background: 'white',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                }}
-              >
-                <option value="All">All Business Units</option>
-                {Array.from(new Set(timeline.map(t => t.bu))).sort().map(bu => (
-                  <option key={bu} value={bu}>{bu}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--navy-800)' }}>Position:</label>
-              <input
-                type="text"
-                list="position-suggestions"
-                value={searchPos}
-                onChange={e => setSearchPos(e.target.value)}
-                placeholder="Search position..."
-                style={{
-                  fontSize: '0.75rem',
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)',
-                  background: 'white',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                  width: '180px',
-                }}
-              />
-              <datalist id="position-suggestions">
-                {Array.from(new Set(timeline.map(t => t.position))).sort().map(pos => (
-                  <option key={pos} value={pos} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-        </div>
-
-        {!timeline || timeline.length === 0 ? (
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem 0' }}>No hiring timeline data detected</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 900 }}>
-              <thead>
-                <tr style={{ background: 'var(--warm-50)', borderRadius: 8 }}>
-                  <th style={{ padding: '0.65rem 0.75rem', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '2px solid var(--border)', borderRadius: '8px 0 0 0' }}>Business Unit</th>
-                  <th style={{ padding: '0.65rem 0.75rem', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '2px solid var(--border)' }}>Position</th>
-                  <th style={{ padding: '0.65rem 0.75rem', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '2px solid var(--border)', textAlign: 'center' }}>Candidates</th>
-                  <th style={{ padding: '0.65rem 0.5rem', fontSize: '0.65rem', color: '#3B5ED6', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center', borderBottom: '2px solid var(--border)' }}>Req→App</th>
-                  <th style={{ padding: '0.65rem 0.5rem', fontSize: '0.65rem', color: '#64748B', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center', borderBottom: '2px solid var(--border)' }}>App→Screen</th>
-                  <th style={{ padding: '0.65rem 0.5rem', fontSize: '0.65rem', color: '#D97706', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center', borderBottom: '2px solid var(--border)' }}>Screen→R1</th>
-                  <th style={{ padding: '0.65rem 0.5rem', fontSize: '0.65rem', color: '#B45309', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center', borderBottom: '2px solid var(--border)' }}>R1→R2</th>
-                  <th style={{ padding: '0.65rem 0.5rem', fontSize: '0.65rem', color: '#B45309', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center', borderBottom: '2px solid var(--border)' }}>R2→R3</th>
-                  <th style={{ padding: '0.65rem 0.5rem', fontSize: '0.65rem', color: '#2E8070', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center', borderBottom: '2px solid var(--border)' }}>R3→Offer</th>
-                  <th style={{ padding: '0.65rem 0.5rem', fontSize: '0.65rem', color: '#C0392B', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center', borderBottom: '2px solid var(--border)' }}>Offer→Hire</th>
-                  <th style={{ padding: '0.65rem 0.75rem', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'right', borderBottom: '2px solid var(--border)', borderRadius: '0 8px 0 0' }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {timeline
-                  .filter(t => selectedBU === 'All' || t.bu === selectedBU)
-                  .filter(t => searchPos.trim() === '' || t.position.toLowerCase().includes(searchPos.toLowerCase()))
-                  .map((t, idx) => {
-                  const s = t.stages
-                  const tot = Math.max(t.totalDays, 1)
-                  const isEven = idx % 2 === 0
-                  return (
-                    <tr key={`${t.bu}-${t.position}-${idx}`} className="data-row" style={{ background: isEven ? 'transparent' : 'rgba(245,242,236,0.4)', borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.75rem 0.75rem' }}>
-                        <span style={{
-                          fontSize: '0.72rem', fontWeight: 700, color: 'var(--navy-800)',
-                          background: 'rgba(15,27,45,0.07)', borderRadius: 6,
-                          padding: '3px 8px', whiteSpace: 'nowrap',
-                        }}>{t.bu}</span>
-                      </td>
-                      <td style={{ padding: '0.75rem 0.75rem' }}>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500, marginBottom: 5 }}>{t.position}</div>
-                        {/* Mini stacked progress bar */}
-                        <div style={{ display: 'flex', width: '100%', height: 5, borderRadius: 3, overflow: 'hidden', gap: 1 }}>
-                          {[
-                            { val: s.reqToApp, color: '#3B5ED6' },
-                            { val: s.appToScreen, color: '#64748B' },
-                            { val: s.screenToR1, color: '#D97706' },
-                            { val: s.r1ToR2, color: '#B45309' },
-                            { val: s.r2ToR3, color: '#D4A843' },
-                            { val: s.r3ToOffer, color: '#2E8070' },
-                            { val: s.offerToHire, color: '#C0392B' },
-                          ].map((seg, si) => (
-                            <div key={si} style={{ width: `${(seg.val / tot) * 100}%`, background: seg.color, minWidth: seg.val > 0 ? 2 : 0 }} title={`${STAGE_COLORS[si]?.label}: ${seg.val}d`} />
-                          ))}
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy-800)' }}>{t.candidateCount || 0}</div>
-                      </td>
-                      {/* Stage day pills */}
-                      {[
-                        { val: s.reqToApp, color: '#3B5ED6', bg: '#EEF2FF' },
-                        { val: s.appToScreen, color: '#64748B', bg: '#F1F5F9' },
-                        { val: s.screenToR1, color: '#D97706', bg: '#FFFBEB' },
-                        { val: s.r1ToR2, color: '#B45309', bg: '#FEF3C7' },
-                        { val: s.r2ToR3, color: '#92400E', bg: '#FDE68A33' },
-                        { val: s.r3ToOffer, color: '#2E8070', bg: '#F0FDF4' },
-                        { val: s.offerToHire, color: '#C0392B', bg: '#FEF2F2' },
-                      ].map((cell, ci) => (
-                        <td key={ci} style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block', fontSize: '0.72rem', fontWeight: 700,
-                            color: cell.color, background: cell.bg,
-                            borderRadius: 8, padding: '3px 8px', minWidth: 32,
-                          }}>{cell.val}d</span>
-                        </td>
-                      ))}
-                      <td style={{ padding: '0.75rem 0.75rem', textAlign: 'right' }}>
-                        <span style={{
-                          display: 'inline-block', fontSize: '0.8rem', fontWeight: 800,
-                          color: t.totalDays <= 45 ? 'var(--teal-500)' : t.totalDays <= 60 ? 'var(--amber-600)' : 'var(--brick-500)',
-                          fontFamily: "'Playfair Display', serif",
-                        }}>{t.totalDays}d</span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
 
       {/* ── Rejection & Offer Drop Reasons ── */}
       <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -1091,6 +865,242 @@ function AnalyticsTab({ data }: { data: DashboardData }) {
             </div>
           )}
         </Panel>
+      </div>
+
+      {/* ─── Hiring Timeline per Position per BU ─── */}
+      {data.hiringTimelineByBU && data.hiringTimelineByBU.length > 0 ? (
+        <HiringTimelineByBU data={data} />
+      ) : (
+        <Panel>
+          <PanelTitle title="Hiring Timeline per Position per Business Unit" />
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem 0' }}>No hiring timeline data available</div>
+        </Panel>
+      )}
+    </div>
+  )
+}
+
+// ─── Hiring Timeline by BU (used inside AnalyticsTab) ────────
+
+function HiringTimelineByBU({ data }: { data: DashboardData }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const timeline = data.hiringTimelineByBU || []
+  const globalMax = Math.max(...timeline.flatMap(bu => bu.positions.map(p => p.total)), 1)
+
+  const toggleBU = (bu: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(bu)) next.delete(bu)
+      else next.add(bu)
+      return next
+    })
+  }
+
+  // Split BUs into two columns
+  const mid = Math.ceil(timeline.length / 2)
+  const columns = [timeline.slice(0, mid), timeline.slice(mid)]
+
+  return (
+    <div style={{ marginTop: '1.5rem' }}>
+      <SectionLabel>Hiring Timeline per Position per Business Unit</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
+        {columns.map((col, ci) => (
+          <div key={ci} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {col.map(bu => {
+              const isOpen = expanded.has(bu.bu)
+              const rate = bu.totalApplicants > 0 ? (bu.totalJoined / bu.totalApplicants) * 100 : 0
+              return (
+                <div key={bu.bu} style={{
+                  border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden',
+                  background: 'white', transition: 'box-shadow 0.2s',
+                  boxShadow: isOpen ? '0 4px 16px rgba(0,0,0,0.06)' : 'none',
+                }}>
+                  {/* BU Header — clickable */}
+                  <div
+                    onClick={() => toggleBU(bu.bu)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.75rem',
+                      padding: '0.7rem 1rem', cursor: 'pointer',
+                      background: isOpen
+                        ? 'linear-gradient(135deg, var(--navy-800) 0%, var(--navy-700) 100%)'
+                        : 'var(--warm-50)',
+                      transition: 'background 0.25s',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {/* Chevron */}
+                    <span style={{
+                      fontSize: '0.65rem', color: isOpen ? 'var(--gold)' : 'var(--text-muted)',
+                      transition: 'transform 0.25s', display: 'inline-block',
+                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                    }}>▶</span>
+
+                    {/* BU Name */}
+                    <span style={{
+                      flex: 1, fontSize: '0.8rem', fontWeight: 600,
+                      color: isOpen ? '#FFFFFF' : 'var(--text-primary)',
+                      fontFamily: "'Playfair Display', serif",
+                      letterSpacing: '-0.01em',
+                    }}>{bu.bu}</span>
+
+                    {/* Position count badge */}
+                    <span style={{
+                      fontSize: '0.62rem', fontWeight: 500,
+                      color: isOpen ? 'rgba(180,190,210,0.7)' : 'var(--text-muted)',
+                      background: isOpen ? 'rgba(255,255,255,0.08)' : 'var(--bg)',
+                      padding: '2px 8px', borderRadius: 10,
+                      border: `1px solid ${isOpen ? 'rgba(255,255,255,0.1)' : 'var(--border)'}`,
+                    }}>
+                      {bu.positions.length} position{bu.positions.length !== 1 ? 's' : ''}
+                    </span>
+
+                    {/* Summary stats */}
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexShrink: 0 }}>
+                      <span style={{
+                        fontSize: '0.68rem', fontWeight: 500,
+                        color: isOpen ? 'rgba(180,190,210,0.6)' : 'var(--text-muted)',
+                      }}>
+                        {bu.totalApplicants} apps
+                      </span>
+                      <span style={{
+                        fontSize: '0.68rem', fontWeight: 600,
+                        color: isOpen ? 'var(--teal-300)' : 'var(--teal-500)',
+                      }}>
+                        {bu.totalJoined} joined
+                      </span>
+                      <span style={{
+                        fontSize: '0.62rem', fontWeight: 600, padding: '2px 8px', borderRadius: 10,
+                        ...(rate >= 10
+                          ? { background: isOpen ? 'rgba(46,128,112,0.25)' : '#EDFBF5', color: isOpen ? '#6EDCC4' : '#1A6845' }
+                          : rate >= 5
+                            ? { background: isOpen ? 'rgba(212,168,67,0.2)' : '#FEF3DC', color: isOpen ? '#F0C75E' : '#9A5D0A' }
+                            : { background: isOpen ? 'rgba(160,42,30,0.2)' : '#FDEAE8', color: isOpen ? '#E8998F' : '#9A2A1E' }
+                        ),
+                      }}>
+                        {pct(rate)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expanded position list */}
+                  {isOpen && (
+                    <div style={{ padding: '0.5rem 0.75rem 0.65rem' }}>
+                      {/* Column headers */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0 0.25rem 0.35rem', marginBottom: '0.2rem',
+                        borderBottom: '1px solid var(--border)',
+                        fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-muted)',
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                      }}>
+                        <span style={{ flex: 1, minWidth: 0 }}>Position</span>
+                        <span style={{ width: 36, textAlign: 'right' }}>Apps</span>
+                        <span style={{ width: 140 }}></span>
+                        <span style={{ width: 32, textAlign: 'center' }}>✓</span>
+                        <span style={{ width: 32, textAlign: 'center' }}>↓</span>
+                        <span style={{ width: 36, textAlign: 'right' }}>Days</span>
+                      </div>
+
+                      {bu.positions.map(pos => {
+                        const barW = globalMax > 0 ? (pos.total / globalMax) * 100 : 0
+                        const joinedW = pos.total > 0 ? (pos.joined / pos.total) * 100 : 0
+                        const offeredW = pos.total > 0 ? (pos.offered / pos.total) * 100 : 0
+                        return (
+                          <div key={pos.position} className="data-row" style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.2rem 0.25rem', borderRadius: 4, minHeight: 26,
+                          }}>
+                            {/* Position name — truncated */}
+                            <div style={{
+                              flex: 1, minWidth: 0, fontSize: '0.72rem', color: 'var(--text-secondary)',
+                              fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }} title={pos.position}>
+                              {pos.position}
+                            </div>
+
+                            {/* Count */}
+                            <div style={{ width: 36, textAlign: 'right', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500, flexShrink: 0 }}>
+                              {pos.total}
+                            </div>
+
+                            {/* Stacked bar */}
+                            <div style={{
+                              width: 140, height: 14, background: 'var(--warm-50)', borderRadius: 3,
+                              overflow: 'hidden', position: 'relative', flexShrink: 0,
+                            }}>
+                              {/* Total bar (navy) */}
+                              <div style={{
+                                position: 'absolute', left: 0, top: 0, height: '100%',
+                                width: `${Math.max(barW, 2)}%`,
+                                background: 'rgba(15,27,45,0.12)', borderRadius: 3,
+                              }} />
+                              {/* Offered bar (amber) */}
+                              <div style={{
+                                position: 'absolute', left: 0, top: 0, height: '100%',
+                                width: `${Math.max(barW * offeredW / 100, 0)}%`,
+                                background: 'rgba(212,168,67,0.4)', borderRadius: 3,
+                              }} />
+                              {/* Joined bar (teal) */}
+                              <div style={{
+                                position: 'absolute', left: 0, top: 0, height: '100%',
+                                width: `${Math.max(barW * joinedW / 100, 0)}%`,
+                                background: 'var(--teal-400)', borderRadius: 3,
+                                transition: 'width 0.5s ease',
+                              }} />
+                            </div>
+
+                            {/* Joined count */}
+                            <div style={{
+                              width: 32, textAlign: 'center', fontSize: '0.68rem', fontWeight: 600,
+                              color: pos.joined > 0 ? 'var(--teal-500)' : 'var(--text-muted)', flexShrink: 0,
+                            }}>
+                              {pos.joined}
+                            </div>
+
+                            {/* Dropped count */}
+                            <div style={{
+                              width: 32, textAlign: 'center', fontSize: '0.68rem', fontWeight: 500,
+                              color: pos.dropped > 0 ? 'var(--brick-400)' : 'var(--text-muted)', flexShrink: 0,
+                            }}>
+                              {pos.dropped}
+                            </div>
+
+                            {/* Avg days */}
+                            <div style={{
+                              width: 36, textAlign: 'right', fontSize: '0.66rem', fontWeight: 500, flexShrink: 0,
+                              color: pos.avgDays !== null
+                                ? pos.avgDays <= 30 ? 'var(--teal-500)' : pos.avgDays <= 60 ? 'var(--amber-600)' : 'var(--brick-500)'
+                                : 'var(--text-muted)',
+                            }}>
+                              {pos.avgDays !== null ? `${pos.avgDays}d` : '–'}
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {/* Legend */}
+                      <div style={{
+                        display: 'flex', gap: '1rem', justifyContent: 'flex-end',
+                        marginTop: '0.4rem', paddingTop: '0.3rem', borderTop: '1px solid var(--border)',
+                      }}>
+                        {[
+                          { color: 'rgba(15,27,45,0.12)', label: 'Applied' },
+                          { color: 'rgba(212,168,67,0.4)', label: 'Offered' },
+                          { color: 'var(--teal-400)', label: 'Joined' },
+                        ].map(l => (
+                          <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+                            {l.label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -1300,8 +1310,8 @@ function Dashboard() {
                   borderRadius: 6, cursor: 'pointer', padding: '4px 12px',
                   fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { const b = e.target as HTMLButtonElement; b.style.color='#E8998F'; b.style.borderColor='rgba(160,42,30,0.4)' }}
-                onMouseLeave={e => { const b = e.target as HTMLButtonElement; b.style.color='rgba(180,190,210,0.5)'; b.style.borderColor='rgba(255,255,255,0.1)' }}
+                onMouseEnter={e => { const b = e.target as HTMLButtonElement; b.style.color = '#E8998F'; b.style.borderColor = 'rgba(160,42,30,0.4)' }}
+                onMouseLeave={e => { const b = e.target as HTMLButtonElement; b.style.color = 'rgba(180,190,210,0.5)'; b.style.borderColor = 'rgba(255,255,255,0.1)' }}
               >Sign out</button>
             </div>
           </div>
