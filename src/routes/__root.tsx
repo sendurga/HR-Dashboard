@@ -6,8 +6,8 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Talent Acquisition Intelligence — FY 2025-26' },
-      { name: 'description', content: 'Recruitment Strategic Dashboard for FY 2025-26 Talent Acquisition Intelligence' },
+      { title: 'Talent Acquisition Intelligence' },
+      { name: 'description', content: 'Recruitment Strategic Dashboard — Talent Acquisition Intelligence' },
     ],
     links: [
       {

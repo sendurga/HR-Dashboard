@@ -116,19 +116,43 @@ export const COLUMN_CANDIDATES = {
   /** The recruiter handling this candidate */
   recruiter: ['recruiter', 'assigned to', 'hr', 'rm', 'talent acquisition', 'spoc'],
 
-  /** Date the application was received */
-  applicationDate: ['application start', 'application start date', 'date', 'application date', 'applied date', 'date of application', 'received date'],
+  /** Date the application was received (when recruiter shared profiles) */
+  applicationDate: ['application start', 'application start date', 'date', 'application date', 'applied date', 'date of application', 'received date', 'application'],
 
   /** Which financial quarter this falls in */
   quarter: ['quarter', 'q', 'fy quarter'],
 
   /** Date the candidate joined (for time-to-fill calculation) */
-  joiningDate: ['hired date', 'joining date', 'date of joining', 'doj', 'join date', 'onboarding date'],
+  joiningDate: ['hired date', 'joining date', 'date of joining', 'doj', 'join date', 'onboarding date', 'joined'],
+
+  /** Job requisition date (when recruiter received the Job from hiring manager) */
+  requisitionDate: ['requisition date', 'job requisition date', 'job req date', 'job requisition', 'req date'],
+
+  /** Requisition start date (when recruiter started working for that position) */
+  requisitionStartDate: ['requisition start date', 'req start date', 'requisition start', 'req start'],
+
+  /** Screening feedback date */
+  screeningDate: ['screening date', 'screen date', 'screening feedback date', 'screening pass date', 'screened date', 'screening', 'screen'],
+
+  /** Round 1 interview date */
+  r1Date: ['1st round date', 'r1 date', 'round 1 date', 'l1 date', 'interview 1 date', 'first round date', 'round 1', '1st round', 'r1', 'l1'],
+
+  /** Round 2 interview date */
+  r2Date: ['2nd round date', 'r2 date', 'round 2 date', 'l2 date', 'interview 2 date', 'second round date', 'round 2', '2nd round', 'r2', 'l2'],
+
+  /** Round 3 interview date */
+  r3Date: ['3rd round date', 'r3 date', 'round 3 date', 'l3 date', 'interview 3 date', 'third round date', 'round 3', '3rd round', 'r3', 'l3'],
+
+  /** Task submission date */
+  taskDate: ['task submission date', 'task date', 'assignment date', 'case study date', 'task', 'assignment'],
+
+  /** Offer extension / Position fill date */
+  offerDate: ['offer date', 'offer extended date', 'date of offer', 'offered date', 'position fill date', 'offer'],
 }
 
 /** Column candidates for the Vacancies sheet */
 export const VACANCY_COLUMN_CANDIDATES = {
-  status: ['number of positions closed', 'status', 'vacancy status', 'position status', 'stage'],
+  status: ['status', 'vacancy status', 'position status', 'stage', 'number of positions closed'],
   businessUnit: ['business vertical', 'business unit', 'bu', 'company', 'division', 'department', 'entity'],
 }
 
