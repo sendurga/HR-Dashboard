@@ -11,12 +11,11 @@ import {
   Tooltip,
   Legend,
   ScatterController,
-  RadialLinearScale,
   Filler
 } from 'chart.js'
-import { Bar, Line, Scatter, Radar } from 'react-chartjs-2'
+import { Bar, Line, Scatter } from 'react-chartjs-2'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ScatterController, RadialLinearScale, Filler)
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ScatterController, Filler)
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
@@ -63,6 +62,7 @@ interface DashboardData {
       reqDate: string | null
       avgDays: number | null
       avgStages: {
+        jdReceived: number | null
         reqStart: number | null
         appStart: number | null
         screen: number | null
@@ -136,7 +136,7 @@ function Panel({ children, style }: { children: React.ReactNode; style?: React.C
   )
 }
 
-function PanelTitle({ title, badge, tooltip }: { title: string; badge?: string; tooltip?: string }) {
+function PanelTitle({ title, badge, tooltip, wideTooltip }: { title: string; badge?: string; tooltip?: string; wideTooltip?: boolean }) {
   return (
     <div style={{
       fontFamily: "'Playfair Display', serif", fontSize: '1rem', fontWeight: 600,
@@ -145,7 +145,7 @@ function PanelTitle({ title, badge, tooltip }: { title: string; badge?: string; 
     }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         {title}
-        {tooltip && <InfoTooltip text={tooltip} />}
+        {tooltip && <InfoTooltip text={tooltip} wide={wideTooltip} />}
       </span>
       {badge && (
         <span style={{
@@ -585,7 +585,7 @@ type TabId = typeof TABS[number]['id']
 // ═══════════════════════════════════════════════════════════════
 
 function OverviewTab({ data }: { data: DashboardData }) {
-  const { kpis, funnel, sourceEfficiency } = data
+  const { kpis, funnel, sourceEfficiency, leakage } = data
   const maxSourceTotal = Math.max(...sourceEfficiency.map(s => s.total), 1)
 
   return (
@@ -624,22 +624,48 @@ function OverviewTab({ data }: { data: DashboardData }) {
       {/* Funnel + Source */}
       <div className="dashboard-grid-2">
         <Panel>
-          <PanelTitle title="Recruitment Funnel — Pipeline Conversion" badge={`${num(funnel.applied)} total applicants`} />
+          <PanelTitle 
+            title="Recruitment Funnel — Pipeline Conversion" 
+            badge={`${num(funnel.applied)} total applicants`} 
+            wideTooltip
+            tooltip={`Applied: All rows in the Applicants sheet.
+
+Screen Shortlisted: Reached at least the screening stage.
+
+Reached Interview: Reached any interview stage (R1, Tech, etc).
+*Note: 'Interview No Shows' are explicitly excluded here.
+
+Extended Offers: Reached the offer stage.
+
+Joined: Accepted offer and joined.
+
+*Evaluated primarily using the 'Highest Stage Reached' column.`} 
+          />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <FunnelBar label="Applied" count={funnel.applied} total={funnel.applied} color="var(--navy-500)" />
-            <DropArrow label={`Screen Shortlist Rate: ${funnel.applied > 0 ? pct(funnel.shortlisted / funnel.applied * 100) : '0%'}`} />
+            <DropArrow label={`Screen Shortlist Rate: ${pct(funnel.shortlisted / Math.max(funnel.applied,1) * 100)}`} />
             <FunnelBar label="Screen Shortlisted" count={funnel.shortlisted} total={funnel.applied} color="var(--amber-400)" />
-            <DropArrow label={`Interview Reach Rate: ${funnel.shortlisted > 0 ? pct(funnel.interviewed / funnel.shortlisted * 100) : '0%'}`} />
+            <DropArrow label={`Interview Reach Rate: ${pct(funnel.interviewed / Math.max(funnel.shortlisted,1) * 100)}`} />
             <FunnelBar label="Reached Interview" count={funnel.interviewed} total={funnel.applied} color="var(--amber-500)" />
-            <DropArrow label={`Offer Conversion: ${funnel.interviewed > 0 ? pct(funnel.offered / funnel.interviewed * 100) : '0%'}`} />
+            <DropArrow label={`Offer Conversion: ${pct(funnel.offered / Math.max(funnel.interviewed,1) * 100)}`} />
             <FunnelBar label="Extended Offers" count={funnel.offered} total={funnel.applied} color="var(--brick-400)" />
-            <DropArrow label={`Offer Acceptance: ${funnel.offered > 0 ? pct(funnel.joined / funnel.offered * 100) : '0%'}`} />
+            <DropArrow label={`Offer Acceptance: ${pct(funnel.joined / Math.max(funnel.offered,1) * 100)}`} />
             <FunnelBar label="Joined" count={funnel.joined} total={funnel.applied} color="var(--teal-400)" />
+          </div>
+          <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border)', fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '1.5rem' }}>
+            <span>↩ Screen/Interview Drops: <strong style={{ color: 'var(--brick-500)' }}>{num(funnel.shortlisted - funnel.interviewed - leakage.noShows)}</strong></span>
+            <span>🚫 Interview No Shows: <strong style={{ color: 'var(--brick-500)' }}>{num(leakage.noShows)}</strong></span>
           </div>
         </Panel>
 
         <Panel>
-          <PanelTitle title="Source Channel Efficiency" badge="by joining rate" />
+          <PanelTitle title="Source Channel Efficiency" badge="by joining rate" wideTooltip tooltip={`Source: Pulled from the 'Source' column in the Applicants sheet.
+
+Joining Rate: (Joined ÷ Total applicants from that source) × 100.
+
+Use this to identify which channels yield the best quality hires, not just volume.
+
+*Higher rate = more efficient channel for your hiring pipeline.`} />
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <tbody>
               {sourceEfficiency.map((s) => (
@@ -696,7 +722,7 @@ function KpiCard({ label, value, sub, badge, badgeStyle }: { label: string; valu
 // ═══════════════════════════════════════════════════════════════
 
 function PerformanceTab({ data }: { data: DashboardData }) {
-  const { kpis, buPerformance, leakage } = data
+  const { kpis, buPerformance, leakage, funnel } = data
   const maxBUTotal = Math.max(...buPerformance.map(b => b.total), 1)
 
   return (
@@ -704,7 +730,17 @@ function PerformanceTab({ data }: { data: DashboardData }) {
       <SectionLabel>Business Unit Performance &amp; Pipeline Health</SectionLabel>
       <div className="dashboard-grid-3">
         <Panel>
-          <PanelTitle title="Business Unit Performance" badge="applicants → joined" />
+          <PanelTitle title="Business Unit Performance" badge="applicants → joined" wideTooltip tooltip={`Business Unit: Pulled from the BU/Company column in the Applicants sheet.
+
+Total: Total applicants tagged to this BU.
+
+Joined: Total candidates who accepted and joined this BU.
+
+Rate: (Joined ÷ Total applicants) × 100.
+
+Time: Average Time to Fill for this BU (if available).
+
+*Use this to spot which business units are scaling efficiently vs struggling.`} />
           {buPerformance.map((bu) => (
             <div key={bu.bu} className="data-row" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--border)', borderRadius: 4 }}>
               <div style={{ width: 150, fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary)', flexShrink: 0 }}>{bu.bu}</div>
@@ -743,7 +779,15 @@ function PerformanceTab({ data }: { data: DashboardData }) {
         </Panel>
 
         <Panel>
-          <PanelTitle title="Pipeline Leakage Points" />
+          <PanelTitle title="Pipeline Leakage Points" wideTooltip tooltip={`Candidate Drops: Candidates who dropped out after being shortlisted, but before the interview stage.
+
+R1/R2 Rejects: Rejected after the first or second interview round.
+
+No-Shows: Scheduled for an interview but did not attend.
+
+Offer Drops: Received an offer but did not join.
+
+*Use this to identify exactly where candidates are exiting your pipeline.`} />
           <div className="dashboard-grid-2-small">
             <LeakCard type="drop" num={leakage.candidateDrops} label="Candidate Drops" sub={kpis.totalApplicants > 0 ? pct(leakage.candidateDrops / kpis.totalApplicants * 100) + ' of pipeline' : ''} />
             <LeakCard type="reject" num={leakage.r1Rejects} label="R1 Rejects" sub="Post-interview rejection" />
@@ -754,7 +798,7 @@ function PerformanceTab({ data }: { data: DashboardData }) {
           </div>
           <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#FBF0EE', borderRadius: 10, borderLeft: '3px solid var(--brick-400)' }}>
             <div style={{ fontSize: '0.72rem', color: '#731B12', lineHeight: 1.5, fontWeight: 500 }}>
-              ⚠ {num(kpis.screenRejects)} screen rejects + {num(leakage.candidateDrops)} candidate drops = {num(kpis.screenRejects + leakage.candidateDrops)} lost before interview
+              ⚠ {num(kpis.totalApplicants - funnel.shortlisted)} candidates ({pct((kpis.totalApplicants - funnel.shortlisted) / Math.max(kpis.totalApplicants, 1) * 100)}) were lost before reaching the shortlisting/interview stage.
             </div>
           </div>
         </Panel>
@@ -1025,15 +1069,20 @@ function PositionTimelinePlot({ data }: { data: DashboardData }) {
   
   const filteredData = baseData.filter(p => p.position.toLowerCase().includes(searchQuery.toLowerCase()))
 
-  // Max days across all stage points for X axis scale
+  // Max/Min days across all stage points for X axis scale
   let maxDays = 10
+  let minDays = 0
   filteredData.forEach(p => {
     Object.values(p.avgStages || {}).forEach(val => {
       if (val !== null && val > maxDays) maxDays = val
+      if (val !== null && val < minDays) minDays = val
     })
   })
+  
+  const range = maxDays - minDays || 1;
 
   const STAGES = [
+    { key: 'jdReceived', label: 'JD Received', shortLabel: 'JD', color: '#6366F1', tooltipDef: 'When the Job Description was received (days from Req Date)' },
     { key: 'reqStart', label: 'Req Start', shortLabel: 'Req↑', color: '#94A3B8', tooltipDef: 'When recruiter started working on the position (days from Job Requisition Date)' },
     { key: 'appStart', label: 'App Start', shortLabel: 'Apps', color: '#FBBF24', tooltipDef: 'When recruiter first shared profiles to hiring manager (days from Req Date)' },
     { key: 'screen', label: 'Screening', shortLabel: 'Scrn', color: '#F59E0B', tooltipDef: 'Average screening/shortlist feedback date (days from Req Date)' },
@@ -1085,6 +1134,12 @@ function PositionTimelinePlot({ data }: { data: DashboardData }) {
             <span className="info-tooltip-box" style={{ width: 200 }}>{s.tooltipDef}</span>
           </div>
         ))}
+        {/* Job Req Date legend entry */}
+        <div className="info-tooltip-wrap" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.68rem', color: 'var(--text-secondary)', cursor: 'help' }}>
+          <span style={{ width: 9, height: 9, background: '#334155', display: 'inline-block', flexShrink: 0, borderRadius: 2, transform: 'rotate(45deg)' }} />
+          <span>Job Req Date</span>
+          <span className="info-tooltip-box" style={{ width: 200 }}>Day 0 — the date the recruiter received the job requisition. All other milestones are measured from this point.</span>
+        </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
           <InfoTooltip text="Day 0 = Job Requisition Date — the date the recruiter received the job requirements from the hiring manager. All milestones are measured from this date." wide />
           <span>Day 0 = Req Date</span>
@@ -1095,11 +1150,24 @@ function PositionTimelinePlot({ data }: { data: DashboardData }) {
       <div style={{ display: 'flex', marginBottom: '0.35rem', fontSize: '0.62rem', color: 'var(--text-muted)' }}>
         <div style={{ width: 160, flexShrink: 0 }} />
         <div style={{ flex: 1, position: 'relative', height: 14 }}>
-          {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => (
-            <div key={i} style={{ position: 'absolute', left: `${frac * 100}%`, transform: i === 4 ? 'translateX(-100%)' : i > 0 ? 'translateX(-50%)' : undefined }}>
-              {i === 0 ? 'Day 0' : `${Math.round(maxDays * frac)}d`}
-            </div>
-          ))}
+          {minDays < 0 ? (
+            // When JD Received is before Req Date: show JD zone label + positive ticks only
+            <>
+              <div style={{ position: 'absolute', left: 0, fontSize: '0.6rem', color: '#6366F1', fontWeight: 600 }}>← JD</div>
+              <div style={{ position: 'absolute', left: `${((0 - minDays) / range) * 100}%`, transform: 'translateX(-50%)', fontWeight: 700, color: 'var(--text-primary)' }}>Day 0</div>
+              {[0.25, 0.5, 0.75, 1].map((frac, i) => {
+                const val = minDays + range * frac;
+                if (val <= 0) return null;
+                return <div key={i} style={{ position: 'absolute', left: `${frac * 100}%`, transform: i === 3 ? 'translateX(-100%)' : 'translateX(-50%)' }}>{Math.round(val)}d</div>;
+              })}
+            </>
+          ) : (
+            [0, 0.25, 0.5, 0.75, 1].map((frac, i) => (
+              <div key={i} style={{ position: 'absolute', left: `${frac * 100}%`, transform: i === 4 ? 'translateX(-100%)' : i > 0 ? 'translateX(-50%)' : undefined }}>
+                {i === 0 ? 'Day 0' : `${Math.round(maxDays * frac)}d`}
+              </div>
+            ))
+          )}
         </div>
         <div style={{ width: 46, flexShrink: 0 }} />
       </div>
@@ -1127,17 +1195,58 @@ function PositionTimelinePlot({ data }: { data: DashboardData }) {
                 </div>
 
                 {/* Track */}
-                <div className="gantt-track">
+                <div className="gantt-track" style={{ position: 'relative' }}>
                   {/* Gray connector bar between first and last milestone */}
                   {firstVal !== null && lastVal !== null && (
                     <div className="gantt-connector" style={{
-                      left: `${(firstVal / maxDays) * 100}%`,
-                      width: `${((lastVal - firstVal) / maxDays) * 100}%`,
+                      left: `${((firstVal - minDays) / range) * 100}%`,
+                      width: `${((lastVal - firstVal) / range) * 100}%`,
                       background: 'rgba(15,23,42,0.08)',
                     }} />
                   )}
 
-                  {/* Milestone dots with actual date tooltip */}
+                  {/* Day 0 vertical rule — only shown when JD Received is before Req Date (negative days) */}
+                  {minDays < 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      left: `${((0 - minDays) / range) * 100}%`,
+                      top: 0,
+                      bottom: 0,
+                      width: 0,
+                      borderLeft: '1.5px dashed rgba(15,23,42,0.3)',
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+
+                  {/* Job Req Date dot — fixed at Day 0 on every row */}
+                  {pos.reqDate && (() => {
+                    const reqLeftPct = ((0 - minDays) / range) * 100;
+                    const reqDateFormatted = new Date(pos.reqDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                    return (
+                      <div
+                        className="info-tooltip-wrap gantt-milestone"
+                        style={{
+                          left: `${reqLeftPct}%`,
+                          background: '#334155',
+                          width: 11,
+                          height: 11,
+                          borderRadius: 2,
+                          transform: 'translateX(-50%) rotate(45deg)',
+                          border: '2px solid #fff',
+                          boxShadow: '0 0 0 1.5px #334155',
+                          zIndex: 10,
+                        }}
+                        title={`Job Req Date: ${reqDateFormatted}`}
+                      >
+                        <span className="info-tooltip-box" style={{ width: 190, bottom: 'calc(100% + 10px)', transform: 'translateX(-50%) rotate(-45deg)' }}>
+                          <strong style={{ display: 'block', marginBottom: 2 }}>Job Req Date</strong>
+                          {reqDateFormatted} · Day 0
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Milestone dots */}
                   {(() => {
                     const validStages = STAGES
                       .map(s => ({ ...s, val: pos.avgStages?.[s.key as keyof typeof pos.avgStages] }))
@@ -1146,23 +1255,36 @@ function PositionTimelinePlot({ data }: { data: DashboardData }) {
 
                     return validStages.map((s, i) => {
                       const val = s.val as number;
-                      const prevVal = i > 0 ? (validStages[i - 1].val as number) : 0;
-                      const prevStageLabel = i > 0 ? validStages[i - 1].label : 'Req Date';
-                      
-                      const stageDays = val - prevVal;
-                      const leftPct = Math.min((val / maxDays) * 100, 100);
-                      const tooltipText = `${s.label}: ${stageDays} days from ${prevStageLabel}`;
-                      
+                      const leftPct = ((val - minDays) / range) * 100;
+
+                      // Compute actual calendar date for this milestone
+                      const actualDate = pos.reqDate
+                        ? new Date(new Date(pos.reqDate).getTime() + val * 86400000)
+                            .toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : null;
+
+                      let tooltipBody: string;
+                      if (s.key === 'jdReceived') {
+                        // JD Received: show actual date only — no day-delta
+                        tooltipBody = actualDate ?? 'Date unavailable';
+                      } else if (i === 0) {
+                        tooltipBody = `Day ${Math.max(0, val)} from Req Date`;
+                      } else {
+                        const prevVal = validStages[i - 1].val as number;
+                        const prevLabel = validStages[i - 1].label;
+                        tooltipBody = `${val - prevVal}d from ${prevLabel}`;
+                      }
+
                       return (
                         <div
                           key={s.key}
                           className="info-tooltip-wrap gantt-milestone"
                           style={{ left: `${leftPct}%`, background: s.color }}
-                          title={tooltipText}
+                          title={`${s.label}: ${tooltipBody}`}
                         >
                           <span className="info-tooltip-box" style={{ width: 180, bottom: 'calc(100% + 8px)' }}>
                             <strong style={{ display: 'block', marginBottom: 2 }}>{s.label}</strong>
-                            {stageDays} days from {prevStageLabel}
+                            {tooltipBody}
                           </span>
                         </div>
                       );
@@ -1328,16 +1450,15 @@ function HiringTimelineByBU({ data }: { data: DashboardData }) {
 function PosKPIBox({ icon, label, value, sub, accent }: { icon: string; label: string; value: string; sub: string; accent: string }) {
   return (
     <div className="kpi-card-hover" style={{
-      border: `1px solid ${accent}33`, borderRadius: 10, padding: '0.6rem 0.85rem',
-      background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: '0.65rem',
-      borderLeft: `3px solid ${accent}`,
+      border: '1px solid var(--border)', borderRadius: 16, padding: '1.25rem',
+      position: 'relative', overflow: 'hidden',
+      background: 'var(--glass-bg)', backdropFilter: 'blur(8px)',
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 110,
     }}>
-      <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>{icon}</span>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={value}>{value}</div>
-        <div style={{ fontSize: '0.62rem', color: accent, fontWeight: 600, marginTop: 1 }}>{sub}</div>
-      </div>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: accent, borderRadius: '4px 0 0 4px' }} />
+      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: '0.4rem' }}>{icon} {label}</div>
+      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1rem', fontWeight: 700, lineHeight: 1.2, color: 'var(--text-primary)', marginBottom: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }} title={value}>{value}</div>
+      <div style={{ fontSize: '0.68rem', color: accent, fontWeight: 600 }}>{sub}</div>
     </div>
   )
 }
@@ -1411,44 +1532,9 @@ function PositionsTab({ data }: { data: DashboardData }) {
     }
   }
 
-  // Radar chart — top 5 positions by volume
-  const top5 = [...allPositions].sort((a, b) => b.total - a.total).slice(0, 5)
-  const maxTotal = Math.max(...top5.map(p => p.total), 1)
-  const maxDaysR = Math.max(...top5.map(p => p.avgDays ?? 0), 1)
-  const radarColors = [
-    'rgba(212,168,67,0.55)', 'rgba(16,185,129,0.55)', 'rgba(239,68,68,0.45)',
-    'rgba(99,102,241,0.45)', 'rgba(249,115,22,0.45)'
-  ]
-  const radarBorders = ['#D4A843','#10B981','#EF4444','#6366F1','#F97316']
-  const radarData = {
-    labels: ['Volume', 'Joined %', 'Conv. Rate', 'Offer Rate', 'Speed (inv.)'],
-    datasets: top5.map((p, i) => ({
-      label: p.position.length > 22 ? p.position.slice(0, 20) + '…' : p.position,
-      data: [
-        Math.round((p.total / maxTotal) * 100),
-        Math.round(p.total > 0 ? (p.joined / p.total) * 100 : 0),
-        Math.round(p.conversionRate),
-        Math.round(p.total > 0 ? (p.offered / p.total) * 100 : 0),
-        p.avgDays ? Math.round((1 - p.avgDays / maxDaysR) * 100) : 0,
-      ],
-      backgroundColor: radarColors[i],
-      borderColor: radarBorders[i],
-      borderWidth: 1.5, pointRadius: 3,
-    }))
-  }
-  const radarOptions = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom' as const, labels: { font: { size: 9, family: 'Inter' }, color: '#74777d', boxWidth: 10, padding: 8 } } },
-    scales: {
-      r: {
-        min: 0, max: 100,
-        grid: { color: 'rgba(15,23,42,0.08)' },
-        angleLines: { color: 'rgba(15,23,42,0.1)' },
-        pointLabels: { font: { size: 9, family: 'Inter' }, color: '#74777d' },
-        ticks: { display: false, stepSize: 25 },
-      }
-    }
-  }
+  // Pipeline Efficiency by Role — top 8 positions by volume
+  const top8Eff = [...allPositions].sort((a, b) => b.total - a.total).slice(0, 8)
+  const maxTotalEff = Math.max(...top8Eff.map(p => p.total), 1)
 
   const thStyle = (k: typeof sortKey): React.CSSProperties => ({
     padding: '0.35rem 0.5rem', fontSize: '0.58rem', fontWeight: 700,
@@ -1460,40 +1546,10 @@ function PositionsTab({ data }: { data: DashboardData }) {
   return (
     <div className="tab-content">
 
-      {/* Header + Search */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <SectionLabel>Position Intelligence</SectionLabel>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>🔍</span>
-            <input
-              type="text"
-              placeholder="Search position or BU..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                padding: '0.42rem 2rem 0.42rem 1.75rem', borderRadius: 8,
-                border: '1px solid var(--border)', background: 'var(--surface-container)',
-                color: 'var(--text-primary)', fontSize: '0.78rem', width: 240, outline: 'none',
-                fontFamily: "'Inter', sans-serif"
-              }}
-            />
-            {search && (
-              <button onClick={() => setSearch('')} style={{
-                position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem',
-                color: 'var(--text-muted)', padding: 0, lineHeight: 1
-              }}>✕</button>
-            )}
-          </div>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            {filteredPositions.length} / {allPositions.length} roles
-          </span>
-        </div>
-      </div>
+      <SectionLabel>Position Intelligence</SectionLabel>
 
       {/* Compact KPI boxes */}
-      <div className="dashboard-grid-4" style={{ marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.25rem' }}>
         <PosKPIBox icon="🔥" label="Most Sourced" value={mostSourced?.position ?? 'N/A'} sub={mostSourced ? `${num(mostSourced.total)} applicants` : '—'} accent="var(--amber-500)" />
         <PosKPIBox icon="⚡" label="Fastest Close" value={fastestClosing?.position ?? 'N/A'} sub={fastestClosing ? `${fastestClosing.avgDays}d avg` : '—'} accent="var(--teal-500)" />
         <PosKPIBox icon="⚠️" label="Highest Drop" value={highestDrop?.position ?? 'N/A'} sub={highestDrop ? `${pct(highestDrop.dropRate)} drop` : '—'} accent="var(--brick-400)" />
@@ -1511,12 +1567,59 @@ function PositionsTab({ data }: { data: DashboardData }) {
           </div>
         </Panel>
 
-        {/* Radar */}
-        {top5.length >= 2 && (
+        {/* Pipeline Efficiency by Role */}
+        {top8Eff.length >= 2 && (
           <Panel>
-            <PanelTitle title="Role Health Radar" tooltip="Top-5 positions by volume. Axes: Volume (normalised), Joined %, Conversion Rate, Offer Rate, Speed (inverse of avg days — higher = faster)." />
-            <div style={{ height: 260 }}>
-              <Radar data={radarData} options={radarOptions} />
+            <PanelTitle
+              title="Pipeline Efficiency by Role"
+              tooltip="Top roles by applicant volume. Each bar shows what fraction of applicants reached Offer stage (amber) and Joined (teal). Conv% = Joined ÷ Applied. Roles with high volume but low teal fill are pipeline bottlenecks."
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+              {top8Eff.map((p, i) => {
+                const offerPct   = p.total > 0 ? (p.offered / p.total) * 100 : 0
+                const joinPct    = p.total > 0 ? (p.joined  / p.total) * 100 : 0
+                const volPct     = (p.total / maxTotalEff) * 100
+                const convColor  = joinPct >= 15 ? 'var(--teal-600)' : joinPct >= 7 ? 'var(--amber-600)' : 'var(--brick-500)'
+                const convBg     = joinPct >= 15 ? '#EDFBF5' : joinPct >= 7 ? '#FEF3DC' : '#FDEAE8'
+                const rank = i + 1
+                return (
+                  <div key={p.position} style={{ display: 'grid', gridTemplateColumns: '20px 1fr 160px 52px 40px', gap: '0.4rem', alignItems: 'center' }}>
+                    {/* Rank */}
+                    <div style={{ fontSize: '0.58rem', fontWeight: 700, color: rank <= 3 ? 'var(--amber-600)' : 'var(--text-muted)', textAlign: 'right' }}>{rank}</div>
+                    {/* Role name */}
+                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }} title={`${p.position} · ${p.bu}`}>
+                      {p.position}
+                      <span style={{ marginLeft: 4, fontSize: '0.57rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--warm-50)', border: '1px solid var(--border)', borderRadius: 4, padding: '0 4px' }}>{p.bu}</span>
+                    </div>
+                    {/* Stacked funnel bar */}
+                    <div style={{ position: 'relative', height: 14, borderRadius: 4, background: 'rgba(15,23,42,0.06)', overflow: 'hidden' }}>
+                      {/* Volume fill (ghost) */}
+                      <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${volPct}%`, background: 'rgba(15,23,42,0.07)', borderRadius: 4 }} />
+                      {/* Offer fill */}
+                      <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${offerPct}%`, background: 'rgba(251,191,36,0.5)', borderRadius: 4, transition: 'width 0.4s' }} />
+                      {/* Joined fill */}
+                      <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${joinPct}%`, background: 'var(--teal-400)', borderRadius: 4, transition: 'width 0.4s' }} />
+                    </div>
+                    {/* Apps count */}
+                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textAlign: 'right', fontWeight: 500 }}>{num(p.total)} apps</div>
+                    {/* Conv rate badge */}
+                    <div style={{ fontSize: '0.6rem', fontWeight: 700, color: convColor, background: convBg, borderRadius: 5, padding: '1px 5px', textAlign: 'center', whiteSpace: 'nowrap' }}>{pct(joinPct)}</div>
+                  </div>
+                )
+              })}
+              {/* Legend */}
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.4rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border)' }}>
+                {[
+                  { color: 'rgba(251,191,36,0.5)', label: 'Reached Offer' },
+                  { color: 'var(--teal-400)', label: 'Joined' },
+                ].map(l => (
+                  <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+                    {l.label}
+                  </div>
+                ))}
+                <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--text-muted)' }}>Bar width = volume vs. top role · Conv% = Joined ÷ Applied</span>
+              </div>
             </div>
           </Panel>
         )}
@@ -1524,7 +1627,34 @@ function PositionsTab({ data }: { data: DashboardData }) {
 
       {/* Compact table */}
       <Panel>
-        <PanelTitle title="Position Pipeline Breakdown" badge={`${filteredPositions.length} roles`} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: "'Playfair Display', serif", fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Position Pipeline Breakdown
+            <InfoTooltip wide text={`Apps: Total applicants who applied for this role across all sources.
+
+Joined: Candidates who accepted the offer and onboarded. Count of 'Joined' status rows.
+
+Drop%: Mid-pipeline attrition. Formula: (Dropped ÷ Apps) × 100. Includes withdrawals and rejections before the offer stage.
+
+Conv: Hiring conversion rate. Formula: (Joined ÷ Apps) × 100. Higher = more efficient pipeline for this role.
+
+Days: Avg days to fill. Average of (Joining Date − Application Date) for joined candidates. Blank if no date data.`} />
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: '0.7rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>🔍</span>
+              <input
+                type="text"
+                placeholder="Search role or BU..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ padding: '0.32rem 1.75rem 0.32rem 1.6rem', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-container)', color: 'var(--text-primary)', fontSize: '0.72rem', width: 180, outline: 'none', fontFamily: "'Inter', sans-serif" }}
+              />
+              {search && <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', padding: 0 }}>✕</button>}
+            </div>
+            <span style={{ fontSize: '0.68rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--warm-50)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{filteredPositions.length} / {allPositions.length} roles</span>
+          </div>
+        </div>
         <div style={{ overflowX: 'auto', maxHeight: 340, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-container-low)', zIndex: 1 }}>

@@ -36,19 +36,19 @@
 export const STATUS_PATTERNS = {
 
   /** Candidate has successfully joined the company */
-  joined: [/\bjoin/i, /\bonboard/i],
+  joined: [/\bjoin/i, /\bonboard/i, /^7\./],
 
   /** Candidate received an offer (but hasn't joined or dropped yet) */
-  offer: [/\boffer\b/i, /offer extend/i, /extended/i],
+  offer: [/\boffer/i, /offer extend/i, /extended/i, /^6\./],
 
   /** Candidate received offer but then dropped out */
-  offerDrop: [/offer.*drop/i, /drop.*offer/i],
+  offerDrop: [/offer.*drop/i, /drop.*offer/i, /declined.*offer/i, /offer.*decline/i],
 
   /** Candidate was shortlisted / passed initial screening */
-  shortlisted: [/shortlist/i, /screen pass/i, /l1 pass/i, /selected/i, /profile shar/i],
+  shortlisted: [/shortlist/i, /screen pass/i, /l1 pass/i, /selected/i, /profile shar/i, /r1.*select/i, /assessment/i, /assignment/i, /\btask\b/i, /^[34567]\./],
 
   /** Candidate reached the interview stage */
-  interview: [/interview/i, /l1/i, /l2/i, /r1/i, /r2/i, /technical/i, /hr round/i],
+  interview: [/interview/i, /l1/i, /l2/i, /r1/i, /r2/i, /technical/i, /hr round/i, /^[4567]\./],
 
   /** Candidate rejected after Round 1 interview */
   r1Reject: [/r1.*reject/i, /round.?1.*reject/i, /l1.*reject/i, /1st.*reject/i],
@@ -60,7 +60,7 @@ export const STATUS_PATTERNS = {
   noShow: [/no.?show/i, /absent/i],
 
   /** Candidate dropped out mid-pipeline (not offer stage) */
-  dropped: [/\bdrop\b/i, /candidate.*drop/i, /not interest/i, /withdrawn/i, /declined/i],
+  dropped: [/drop/i, /not interest/i, /withdrawn/i, /declined/i],
 
   /** Candidate rejected at initial screening stage */
   screenReject: [/screen.*reject/i, /profile reject/i, /not shortlist/i, /rejected/i],
@@ -101,6 +101,9 @@ export const VACANCY_PATTERNS = {
 
 export const COLUMN_CANDIDATES = {
 
+  /** The highest stage the candidate reached in the pipeline */
+  highestStage: ['highest stage reached', 'highest stage', 'max stage'],
+
   /** The candidate's current recruitment status */
   status: ['status', 'current status', 'stage', 'pipeline stage', 'recruitment status'],
 
@@ -124,6 +127,9 @@ export const COLUMN_CANDIDATES = {
 
   /** Date the candidate joined (for time-to-fill calculation) */
   joiningDate: ['hired date', 'joining date', 'date of joining', 'doj', 'join date', 'onboarding date', 'joined'],
+
+  /** JD Received Date */
+  jdReceivedDate: ['jd received date', 'jd received'],
 
   /** Job requisition date (when recruiter received the Job from hiring manager) */
   requisitionDate: ['requisition date', 'job requisition date', 'job req date', 'job requisition', 'req date'],

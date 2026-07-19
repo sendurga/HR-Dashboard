@@ -17,39 +17,55 @@ const DEFAULT_VACANCIES_URL = DEFAULT_VACANCIES_CSV_URL
 
 // ─── CSV Parsing ─────────────────────────────────────────────
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = []
-  let current = ''
+function parseCSV(text: string): Record<string, string>[] {
+  text = text.replace(/\r/g, '')
+  const rows: string[][] = []
+  let current: string[] = []
+  let currentValue = ''
   let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i]
+  
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
     if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') { current += '"'; i++ }
-      else inQuotes = !inQuotes
+      if (inQuotes && text[i + 1] === '"') {
+        currentValue += '"'
+        i++ // Skip escaped quote
+      } else {
+        inQuotes = !inQuotes
+      }
     } else if (ch === ',' && !inQuotes) {
-      result.push(current); current = ''
+      current.push(currentValue)
+      currentValue = ''
+    } else if (ch === '\n' && !inQuotes) {
+      current.push(currentValue)
+      rows.push(current)
+      current = []
+      currentValue = ''
     } else {
-      current += ch
+      currentValue += ch
     }
   }
-  result.push(current)
-  return result
-}
-
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.replace(/\r/g, '').trim().split('\n')
-  if (lines.length < 2) return []
-  const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/\s+/g, ' '))
-  const rows: Record<string, string>[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-    const values = parseCSVLine(line)
-    const row: Record<string, string> = {}
-    headers.forEach((h, idx) => { row[h] = (values[idx] || '').trim() })
-    rows.push(row)
+  if (currentValue !== '' || current.length > 0) {
+    current.push(currentValue)
+    rows.push(current)
   }
-  return rows
+
+  const validRows = rows.filter(row => row.some(cell => cell.trim() !== ''))
+  if (validRows.length < 2) return []
+
+  const headers = validRows[0].map(h => h.trim().toLowerCase().replace(/\s+/g, ' '))
+  const result: Record<string, string>[] = []
+
+  for (let i = 1; i < validRows.length; i++) {
+    const rowData = validRows[i]
+    const rowObj: Record<string, string> = {}
+    headers.forEach((h, idx) => {
+      rowObj[h] = (rowData[idx] || '').trim()
+    })
+    result.push(rowObj)
+  }
+  
+  return result
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -124,6 +140,7 @@ function findCol(allKeys: string[], candidates: string[]): string {
     const partial = allKeys.find(k => k.includes(lc))
     if (partial) return partial
   }
+  console.warn(`[HR-Dashboard] Warning: Column not found for candidates: ${candidates.join(', ')}. Falling back to "${candidates[0]}".`)
   return candidates[0].toLowerCase()
 }
 
@@ -197,6 +214,7 @@ interface DashboardData {
       dropped: number
       avgDays: number | null
       avgStages: {
+        jdReceived: number | null
         reqStart: number | null
         appStart: number | null
         screen: number | null
@@ -222,6 +240,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   const allKeys = Object.keys(sample)
 
   // Resolve column names using config candidates
+  const highestStageKey = findCol(allKeys, COLUMN_CANDIDATES.highestStage || ['highest stage reached', 'highest stage', 'max stage'])
   const statusKey = findCol(allKeys, COLUMN_CANDIDATES.status)
   const sourceKey = findCol(allKeys, COLUMN_CANDIDATES.source)
   const buKey = findCol(allKeys, COLUMN_CANDIDATES.businessUnit)
@@ -231,6 +250,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   const quarterKey = findCol(allKeys, COLUMN_CANDIDATES.quarter)
   const joinDateKey = findCol(allKeys, COLUMN_CANDIDATES.joiningDate)
   const reasonKey = findCol(allKeys, ['reason for rejection', 'rejection reason', 'reason'])
+  const jdReceivedDateKey = findCol(allKeys, COLUMN_CANDIDATES.jdReceivedDate)
   const reqDateKey = findCol(allKeys, COLUMN_CANDIDATES.requisitionDate)
   const reqStartDateKey = findCol(allKeys, COLUMN_CANDIDATES.requisitionStartDate)
   const screenDateKey = findCol(allKeys, COLUMN_CANDIDATES.screeningDate)
@@ -251,7 +271,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   const buPositionMap: Record<string, Record<string, { 
     total: number; joined: number; offered: number; dropped: number; days: number[];
     reqDates: Date[];
-    stages: { reqStart: number[]; appStart: number[]; screen: number[]; r1: number[]; r2: number[]; r3: number[]; task: number[]; offer: number[]; }
+    stages: { jdReceived: number[]; reqStart: number[]; appStart: number[]; screen: number[]; r1: number[]; r2: number[]; r3: number[]; task: number[]; offer: number[]; }
   }>> = {}
   const recruiterMap: Record<string, { apps: number; offers: number; joined: number; offerDrops: number }> = {}
   const posMap: Record<string, { apps: number; joined: number }> = {}
@@ -261,6 +281,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   const timeToFillByBUMap: Record<string, number[]> = {}
 
   for (const row of apps) {
+    const highestStage = (row[highestStageKey] || '').trim()
     const status = (row[statusKey] || '').trim()
     const source = (row[sourceKey] || 'Unknown').trim() || 'Unknown'
     const bu = (row[buKey] || 'Unknown').trim() || 'Unknown'
@@ -284,7 +305,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     if (!buPositionMap[bu]) buPositionMap[bu] = {}
     if (!buPositionMap[bu][position]) buPositionMap[bu][position] = { 
       total: 0, joined: 0, offered: 0, dropped: 0, days: [], reqDates: [],
-      stages: { reqStart: [], appStart: [], screen: [], r1: [], r2: [], r3: [], task: [], offer: [] }
+      stages: { jdReceived: [], reqStart: [], appStart: [], screen: [], r1: [], r2: [], r3: [], task: [], offer: [] }
     }
     buPositionMap[bu][position].total++
 
@@ -293,9 +314,12 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
       buPositionMap[bu][position].reqDates.push(reqDate)
       const getDiff = (key: string) => {
         const d = parseDate(row[key] || '')
-        if (d && d >= reqDate) return Math.round((d.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24))
+        if (d) return Math.round((d.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24))
         return null
       }
+      
+      const jdReceived = getDiff(jdReceivedDateKey)
+      if (jdReceived !== null) buPositionMap[bu][position].stages.jdReceived.push(jdReceived)
       
       const reqStart = getDiff(reqStartDateKey)
       if (reqStart !== null) buPositionMap[bu][position].stages.reqStart.push(reqStart)
@@ -334,19 +358,45 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     //  Status classification (priority order — first match wins)
     //  See kpi-config.ts STATUS_PATTERNS for keyword definitions
     // ──────────────────────────────────────────────────────────
-    const isJoin = matchStatus(status, STATUS_PATTERNS.joined)
-    const isOfferDrop = matchStatus(status, STATUS_PATTERNS.offerDrop)
-    const isOffer = !isJoin && !isOfferDrop && matchStatus(status, STATUS_PATTERNS.offer)
-    const isDrop = !isJoin && !isOffer && !isOfferDrop && matchStatus(status, STATUS_PATTERNS.dropped)
+    const stageToEvaluate = highestStage ? highestStage : status
+    
+    const isJoin = matchStatus(stageToEvaluate, STATUS_PATTERNS.joined)
+    let isOfferDrop = matchStatus(status, STATUS_PATTERNS.offerDrop)
+    const isOffer = !isJoin && !isOfferDrop && matchStatus(stageToEvaluate, STATUS_PATTERNS.offer)
+    
+    // Evaluate if dropped based on stage containing (Candidate Drop) or fallback to status if needed
+    const stageIsDrop = matchStatus(stageToEvaluate, STATUS_PATTERNS.dropped)
+    if (!isOfferDrop && isOffer && matchStatus(status, STATUS_PATTERNS.dropped)) {
+      isOfferDrop = true
+    }
+    const isDrop = !isJoin && !isOffer && !isOfferDrop && stageIsDrop
+    
     const isR1 = matchStatus(status, STATUS_PATTERNS.r1Reject)
     const isR2 = matchStatus(status, STATUS_PATTERNS.r2Reject)
-    const isNoShow = matchStatus(status, STATUS_PATTERNS.noShow)
+    const isNoShow = matchStatus(stageToEvaluate, STATUS_PATTERNS.noShow)
     const isScreenReject = !isR1 && !isR2 && matchStatus(status, STATUS_PATTERNS.screenReject)
+    
+    const stageIsOffer = isOffer || isJoin || isOfferDrop
+    const stageIsR1 = matchStatus(stageToEvaluate, STATUS_PATTERNS.r1Reject) || isR1
+    const stageIsR2 = matchStatus(stageToEvaluate, STATUS_PATTERNS.r2Reject) || isR2
+    let stageIsInterview = matchStatus(stageToEvaluate, STATUS_PATTERNS.interview) || stageIsOffer || stageIsR1 || stageIsR2
+    
+    // Explicitly exclude No-Shows from the Interviewed count.
+    // Even if their Highest Stage says 'Interviewed', a No-Show means they never actually attended.
+    if (isNoShow) {
+      stageIsInterview = false
+    }
 
-    // Shortlisted = passed initial screen (does NOT include screen rejects)
-    const isShort = matchStatus(status, STATUS_PATTERNS.shortlisted) || isOffer || isJoin || isOfferDrop || isR1 || isR2 || isNoShow
-    // Interviewed = reached interview stage
-    const isInterview = matchStatus(status, STATUS_PATTERNS.interview) || isOffer || isJoin || isOfferDrop || isR1 || isR2
+    const stageIsNoShow = matchStatus(stageToEvaluate, STATUS_PATTERNS.noShow)
+    const stageIsShort = matchStatus(stageToEvaluate, STATUS_PATTERNS.shortlisted) || stageIsInterview || stageIsNoShow || isNoShow
+
+    if (stageIsShort) shortlisted++
+    if (stageIsInterview) interviewed++
+    if (stageIsOffer) {
+      offered++
+      recruiterMap[recruiter].offers++
+      buPositionMap[bu][position].offered++
+    }
 
     if (isDrop || isR1 || isR2 || isScreenReject || isOfferDrop) {
       const reason = (row[reasonKey] || '').trim()
@@ -360,15 +410,13 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
     }
 
     if (isJoin) {
-      joined++; shortlisted++; interviewed++; offered++
+      joined++
       sourceMap[source].joined++
       buMap[bu].joined++
       posMap[position].joined++
       recruiterMap[recruiter].joined++
-      recruiterMap[recruiter].offers++  // FIX: joined candidates passed offer stage
       quarterMap[quarter].joined++
       buPositionMap[bu][position].joined++
-      buPositionMap[bu][position].offered++
 
       // Compute time-to-fill for this joined candidate (from Day 0 = reqDate)
       const joinDate = parseDate(row[joinDateKey] || '')
@@ -383,32 +431,22 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
         }
       }
     } else if (isOfferDrop) {
-      offerDrops++; offered++; shortlisted++; interviewed++
-      recruiterMap[recruiter].offers++
+      offerDrops++
       recruiterMap[recruiter].offerDrops++
-      buPositionMap[bu][position].offered++
       buPositionMap[bu][position].dropped++
-    } else if (isOffer) {
-      offered++; shortlisted++; interviewed++
-      recruiterMap[recruiter].offers++
-      buPositionMap[bu][position].offered++
     } else if (isDrop) {
-      candidateDrops++
+      if (stageIsShort && !stageIsInterview) {
+        candidateDrops++
+      }
       buPositionMap[bu][position].dropped++
-      if (isShort) shortlisted++
-      if (isInterview) interviewed++
     } else if (isR1) {
-      r1Rejects++; shortlisted++; interviewed++
+      r1Rejects++
     } else if (isR2) {
-      r2Rejects++; shortlisted++; interviewed++
+      r2Rejects++
     } else if (isNoShow) {
-      noShows++; shortlisted++
+      noShows++
     } else if (isScreenReject) {
       screenRejects++
-      // FIX: Screen rejects are NOT counted as shortlisted
-      // They were rejected at screening — they never passed the shortlist
-    } else if (isShort) {
-      shortlisted++
     }
   }
 
@@ -465,6 +503,7 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
             reqDate: reqDateStr,
             avgDays: d.days.length > 0 ? Math.round(d.days.reduce((a, b) => a + b, 0) / d.days.length) : null,
             avgStages: {
+              jdReceived: d.stages.jdReceived.length > 0 ? Math.round(d.stages.jdReceived.reduce((a, b) => a + b, 0) / d.stages.jdReceived.length) : null,
               reqStart: d.stages.reqStart.length > 0 ? Math.round(d.stages.reqStart.reduce((a, b) => a + b, 0) / d.stages.reqStart.length) : null,
               appStart: d.stages.appStart.length > 0 ? Math.round(d.stages.appStart.reduce((a, b) => a + b, 0) / d.stages.appStart.length) : null,
               screen: d.stages.screen.length > 0 ? Math.round(d.stages.screen.reduce((a, b) => a + b, 0) / d.stages.screen.length) : null,
@@ -508,6 +547,10 @@ function computeDashboard(applicants: Record<string, string>[], vacancies: Recor
   const avgTimeToFill = timeToFillDays.length > 0
     ? Math.round(timeToFillDays.reduce((a, b) => a + b, 0) / timeToFillDays.length)
     : null
+
+  if (avgTimeToFill === null && joined > 0) {
+    console.warn(`[HR-Dashboard] Warning: TTF is null but ${joined} candidates joined. 'reqDate' or 'joinDate' may be missing.`)
+  }
 
   // Source efficiency
   const sourceEfficiency = Object.entries(sourceMap)
