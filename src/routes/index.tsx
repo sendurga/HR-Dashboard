@@ -618,7 +618,25 @@ function OverviewTab({ data }: { data: DashboardData }) {
         {/* Candidate Drops */}
         <KpiCard label="Candidate Drops" value={num(kpis.candidateDrops)} sub="Mid-pipeline attrition"
           badge={kpis.totalApplicants > 0 ? pct(kpis.candidateDrops / kpis.totalApplicants * 100) : '0%'}
-          badgeStyle={{ background: '#FDEAE8', color: '#9A2A1E' }} />
+          badgeStyle={{ background: '#FDEAE8', color: '#9A2A1E' }}
+          inlineBadge />
+        {/* Offer Closure Rate */}
+        {(() => {
+          const activeVacancies = kpis.totalVacancies - kpis.onHoldVacancies
+          const closureRate = activeVacancies > 0 ? kpis.offersExtended / activeVacancies : 0
+          return (
+            <KpiCard
+              label="Offer Closure Rate"
+              value={activeVacancies > 0 ? pct(closureRate * 100) : '—'}
+              sub={`${num(kpis.offersExtended)} offers out of ${num(activeVacancies)} active positions`}
+              badge={activeVacancies > 0 ? `${num(kpis.offersExtended)}/${num(activeVacancies)}` : undefined}
+              badgeStyle={closureRate >= 0.5 ? { background: '#D4EDDA', color: '#155724' } : closureRate >= 0.25 ? { background: '#FFF3CD', color: '#856404' } : { background: '#FDEAE8', color: '#9A2A1E' }}
+              inlineBadge
+              tooltip={`Offer Closure Rate = Offers Extended ÷ Active Vacancies × 100.\n\nActive Vacancies = Total (${num(kpis.totalVacancies)}) − On Hold (${num(kpis.onHoldVacancies)}) = ${num(activeVacancies)}.\n\nOn-hold positions are excluded as they are not actively being filled.\n\nA low rate may indicate sourcing gaps, slow pipelines, or positions going unfilled.`}
+            />
+          )
+        })()}
+
       </div>
 
       {/* Funnel + Source */}
@@ -702,20 +720,27 @@ Use this to identify which channels yield the best quality hires, not just volum
   )
 }
 
-function KpiCard({ label, value, sub, badge, badgeStyle }: { label: string; value: string; sub: string; badge?: string; badgeStyle?: React.CSSProperties }) {
+function KpiCard({ label, value, sub, badge, badgeStyle, inlineBadge, tooltip }: { label: string; value: string; sub: string; badge?: string; badgeStyle?: React.CSSProperties; inlineBadge?: boolean; tooltip?: string }) {
   return (
     <div className="kpi-card-hover glass-panel" style={{
       borderRadius: 16, padding: '1.4rem 1.25rem', position: 'relative',
     }}>
-      {badge && (
+      {badge && !inlineBadge && (
         <span style={{ position: 'absolute', top: '1.2rem', right: '1.1rem', fontSize: '0.7rem', fontWeight: 600, padding: '3px 10px', borderRadius: 20, ...badgeStyle }}>{badge}</span>
       )}
-      <div style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>{label}</div>
-      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, marginBottom: '0.3rem' }}>{value}</div>
+      <div style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        {label}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </div>
+      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, marginBottom: badge && inlineBadge ? '0.35rem' : '0.3rem' }}>{value}</div>
+      {badge && inlineBadge && (
+        <span style={{ display: 'inline-block', fontSize: '0.67rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, marginBottom: '0.3rem', ...badgeStyle }}>{badge}</span>
+      )}
       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{sub}</div>
     </div>
   )
 }
+
 
 // ═══════════════════════════════════════════════════════════════
 //  TAB 2: PERFORMANCE — BU + Leakage + Vacancy
