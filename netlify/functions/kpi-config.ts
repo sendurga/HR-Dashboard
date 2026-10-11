@@ -45,7 +45,7 @@ export const STATUS_PATTERNS = {
   offerDrop: [/offer.*drop/i, /drop.*offer/i, /declined.*offer/i, /offer.*decline/i],
 
   /** Candidate was shortlisted / passed initial screening */
-  shortlisted: [/shortlist/i, /screen pass/i, /l1 pass/i, /selected/i, /profile shar/i, /r1.*select/i, /assessment/i, /assignment/i, /\btask\b/i, /^[34567]\./],
+  shortlisted: [/shortlist/i, /screen pass/i, /l1 pass/i, /selected/i, /profile shar/i, /r1.*select/i, /assessment/i, /assignment/i, /\btask\b/i, /candidate.*drop/i, /screen.*drop/i, /^[34567]\./],
 
   /** Candidate reached the interview stage */
   interview: [/interview/i, /l1/i, /l2/i, /r1/i, /r2/i, /technical/i, /hr round/i, /^[4567]\./],
